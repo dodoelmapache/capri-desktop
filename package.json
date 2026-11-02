@@ -1,6 +1,6 @@
 {
   "name": "capri-desktop",
-  "version": "0.4.0-dodo.1",
+  "version": "0.4.0-dodo.2",
   "description": "Capri, the Project Capricorn construct, living on your desktop and narrating what Claude Code is doing.",
   "author": "Dodo (based on mochiiwuff)",
   "repository": "github:dodoelmapache/capri-desktop",

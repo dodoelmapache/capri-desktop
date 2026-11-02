@@ -10,6 +10,15 @@ glitches, comments on every action, comes to find you when it needs your permiss
 
 ![Teleport, frame by frame](docs/teleport.png)
 
+## Watch her
+
+| | 16:9 | 9:16 (phones, Reels, Shorts) |
+|---|---|---|
+| **English** | [capri-FINAL-en-16x9.mp4](https://github.com/dodoelmapache/capri-desktop/releases/download/v0.4.0-dodo.2/capri-FINAL-en-16x9.mp4) | [capri-FINAL-en-9x16.mp4](https://github.com/dodoelmapache/capri-desktop/releases/download/v0.4.0-dodo.2/capri-FINAL-en-9x16.mp4) |
+| **Español** | [capri-FINAL-es-16x9.mp4](https://github.com/dodoelmapache/capri-desktop/releases/download/v0.4.0-dodo.2/capri-FINAL-es-16x9.mp4) | [capri-FINAL-es-9x16.mp4](https://github.com/dodoelmapache/capri-desktop/releases/download/v0.4.0-dodo.2/capri-FINAL-es-9x16.mp4) |
+
+A 90-second tour: what she does, how to talk to her, voice mode, images, her card and how to turn her on.
+
 ## What she does
 
 - **When she starts**: she grabs your screen. Its edges crackle red, her left hand slams onto its edge, then her
@@ -203,6 +212,12 @@ All of it is optional, local-first and asks (**Allow / Deny** cards) before it t
 - **Messages from her card**: new WhatsApp/Discord messages show as a card with a sound and no voice by default; replying moves the chat app out of sight while she types (`msgStealth`).
 - **Where she rests**: sitting on the taskbar, left or right (her menu, "When she rests").
 - **Animated tour**: open `docs/presentation.html` in a browser (a 60 s tour and a 20 s teaser; add your own clips in `docs/media/`).
+- **Images with your own Gemini account**: "crea la imagen de un gatito" opens Gemini in your browser (Zen if you have it, else Chrome), uses the session you're already signed in with (no API key, no quota of its own), waits until the picture is really finished and saves it in `Pictures\Capri`. The tab stays open so you can see it. Settings › Images: `imageVia` (web / api), `imageBrowser` (auto / zen / chrome), `imageWindow` (show / hidden).
+- **Zen and its control port**: for the images above, and so tools like the Zen MCP can drive your browser, she adds `--remote-debugging-port 9223` to your Zen shortcuts when she starts (`zenDebugPort: false` leaves them alone). The port only listens on your own PC, and Zen allows one controller at a time. Close Zen fully and reopen it from a shortcut the first time.
+- **League of Legends queue**: optional auto-accept of the match (`lolAutoAccept`, `lolAcceptDelay`). It only clicks Accept through the client's own local API.
+- **Claude, your way**: pick the version and effort of Sonnet, Opus and Haiku separately (Settings › Claude models).
+- **Voice mode in the big window**: a compact call card instead of a full-screen cover, so you keep seeing the conversation.
+- **Her card on a key**: `Ctrl+Alt+V` opens her card (the big window has its own key). `Ctrl+Alt+C` puts her away or brings her back.
 - **Install a local model by voice**: "capri, instala qwen3:8b" (asks first, downloads from Ollama, does not switch your model).
 
 ## Install
