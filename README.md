@@ -202,6 +202,7 @@ All of it is optional, local-first and asks (**Allow / Deny** cards) before it t
 - **League of Legends mode** (off unless a match is on): recaps and safe advice that follows Riot's rules (see below).
 - **Messages from her card**: new WhatsApp/Discord messages show as a card with a sound and no voice by default; replying moves the chat app out of sight while she types (`msgStealth`).
 - **Where she rests**: sitting on the taskbar, left or right (her menu, "When she rests").
+- **Animated tour**: open `docs/presentation.html` in a browser (a 60 s tour and a 20 s teaser; add your own clips in `docs/media/`).
 - **Install a local model by voice**: "capri, instala qwen3:8b" (asks first, downloads from Ollama, does not switch your model).
 
 ## Install

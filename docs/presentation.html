@@ -1,0 +1,436 @@
+<title>Capri in Motion</title>
+<!-- Capri, animated tour. Open this file in a browser from the repo (docs/presentation.html). Put your own clips in docs/media/ (see docs/media/README.md). -->
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout concept: a HUD "player" stage (16:9) that plays scenes on a timeline, with a control strip under it.
+   Her own look: ink background, red HUD accent, violet and green as support, octagon cuts, Chakra Petch + JetBrains Mono. */
+:root {
+  --ink: oklch(0.17 0.035 300);
+  --ink-2: oklch(0.22 0.04 300);
+  --line: oklch(0.34 0.05 300);
+  --paper: oklch(0.96 0.012 350);
+  --mute: oklch(0.72 0.03 320);
+  --red: oklch(0.65 0.245 15);
+  --green: oklch(0.88 0.24 148);
+  --violet: oklch(0.62 0.22 292);
+  --font-display: 'Chakra Petch', 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --octagon: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+  --cut: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--ink); color: var(--paper); }
+body {
+  margin: 0; font-family: var(--font-display);
+  padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 40px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 14px; }
+header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { margin: 0; font-size: 20px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; }
+h1 span { color: var(--red); }
+.sub { font-family: var(--font-mono); font-size: 11px; color: var(--mute); letter-spacing: .04em; }
+
+/* ---------- stage ---------- */
+.stage {
+  --k: 1;
+  container-type: inline-size;
+  position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden;
+  background:
+    linear-gradient(oklch(0.3 0.05 300 / .22) 1px, transparent 1px) 0 0 / 4cqw 4cqw,
+    linear-gradient(90deg, oklch(0.3 0.05 300 / .22) 1px, transparent 1px) 0 0 / 4cqw 4cqw,
+    radial-gradient(120% 90% at 20% 0%, oklch(0.26 0.08 300), var(--ink));
+  clip-path: var(--cut);
+  outline: 1px solid var(--line);
+}
+.stage::before, .stage::after { content: ""; position: absolute; width: 3cqw; height: 3cqw; border: 2px solid var(--red); z-index: 5; pointer-events: none; }
+.stage::before { left: 1.4cqw; top: 1.4cqw; border-right: 0; border-bottom: 0; }
+.stage::after { right: 1.4cqw; bottom: 1.4cqw; border-left: 0; border-top: 0; }
+.scene { position: absolute; inset: 0; display: none; padding: 5cqw 6cqw 7cqw; }
+.scene.on { display: block; }
+.tag { font-family: var(--font-mono); font-size: 1.35cqw; letter-spacing: .22em; color: var(--red); text-transform: uppercase; }
+.h { font-size: 4.6cqw; line-height: 1.04; font-weight: 700; margin: .5cqw 0 0; text-wrap: balance; max-width: 60%; }
+.h.wide { max-width: 88%; }
+.h em { font-style: normal; color: var(--green); }
+.cap {
+  position: absolute; left: 6cqw; right: 6cqw; bottom: 2.2cqw; z-index: 4;
+  font-family: var(--font-mono); font-size: 1.55cqw; color: var(--mute); letter-spacing: .02em;
+  display: flex; gap: 1cqw; align-items: center;
+}
+.cap::before { content: ""; width: 1.1cqw; height: 1.1cqw; background: var(--red); clip-path: var(--octagon); flex: none; }
+.mono { font-family: var(--font-mono); }
+
+/* animation system: each [data-a] child is timed with --at (start) and --for (length), both in "scene seconds" */
+.on [data-a] { animation-name: var(--an); animation-duration: calc(var(--for, .6) * var(--k) * 1s); animation-delay: calc(var(--at, 0) * var(--k) * 1s); animation-fill-mode: both; animation-timing-function: var(--ease); }
+.a-rise { --an: rise; } .a-pop { --an: pop; } .a-slide { --an: slide; } .a-wipe { --an: wipe; } .a-glitch { --an: glitch; }
+.a-grow { --an: grow; transform-origin: left center; } .a-fade { --an: fade; }
+@keyframes rise { from { opacity: 0; transform: translateY(2cqw); } to { opacity: 1; transform: none; } }
+@keyframes pop { 0% { opacity: 0; transform: scale(.6); } 70% { opacity: 1; transform: scale(1.06); } 100% { transform: none; } }
+@keyframes slide { from { opacity: 0; transform: translateX(8cqw); } to { opacity: 1; transform: none; } }
+@keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes glitch { 0% { opacity: 0; transform: translateX(-2cqw) skewX(-12deg); } 30% { opacity: 1; transform: translateX(1cqw) skewX(8deg); filter: drop-shadow(.4cqw 0 var(--red)) drop-shadow(-.4cqw 0 var(--green)); } 60% { transform: translateX(-.5cqw); } 100% { transform: none; filter: none; } }
+
+/* ---------- scene 1: title ---------- */
+.s1 { display: none; place-items: center; text-align: center; }
+.s1.on { display: grid; }
+.s1 .mark { width: 15cqw; margin: 0 auto 2cqw; display: block; }
+.s1 .big { font-size: 11cqw; font-weight: 700; letter-spacing: .12em; line-height: 1; margin: 0; }
+.s1 .big b { color: var(--red); font-weight: 700; }
+.s1 .line { font-size: 2.3cqw; color: var(--mute); margin-top: 2cqw; max-width: 58cqw; text-wrap: balance; }
+.s1 .line span { color: var(--green); }
+
+/* ---------- scene 2: desktop ---------- */
+.desk { position: absolute; left: 6cqw; right: 6cqw; top: 20cqw; bottom: 6.5cqw; border: 1px solid var(--line); background: oklch(0.2 0.05 300 / .8); overflow: hidden; }
+.win { position: absolute; left: 4cqw; top: 2.4cqw; width: 36cqw; height: 15cqw; border: 1px solid var(--line); background: var(--ink-2); }
+.win i { display: block; height: 2.4cqw; background: oklch(0.3 0.06 300); border-bottom: 1px solid var(--line); }
+.win u { display: block; height: .8cqw; margin: 1.2cqw 1.6cqw 0; background: oklch(0.38 0.05 300); text-decoration: none; }
+.win u:nth-of-type(2) { width: 70%; } .win u:nth-of-type(3) { width: 50%; }
+.win2 { left: 42cqw; top: 4cqw; width: 32cqw; height: 12cqw; opacity: .8; }
+.task { position: absolute; left: 0; right: 0; bottom: 0; height: 3.6cqw; background: oklch(0.14 0.03 300); border-top: 1px solid var(--line); }
+.task b { position: absolute; top: 1.1cqw; width: 2cqw; height: 1.4cqw; background: oklch(0.4 0.05 300); }
+.presence { position: absolute; bottom: 3.6cqw; width: 6cqw; margin-left: -3cqw; animation: pace calc(8s * var(--k)) var(--ease) both; }
+.presence svg { display: block; width: 100%; filter: drop-shadow(0 0 1cqw oklch(0.65 0.245 15 / .55)); }
+@keyframes pace { 0% { left: 14%; } 38% { left: 14%; } 52% { left: 82%; } 100% { left: 82%; } }
+.chips { position: absolute; right: 2cqw; top: 2cqw; display: flex; gap: .8cqw; font-family: var(--font-mono); font-size: 1.4cqw; }
+.chip { padding: .5cqw 1.2cqw; border: 1px solid var(--line); color: var(--mute); }
+.chip.l { animation: chipL calc(8s * var(--k)) steps(1) both; }
+.chip.r { animation: chipR calc(8s * var(--k)) steps(1) both; }
+@keyframes chipL { 0%, 49% { color: var(--ink); background: var(--green); border-color: var(--green); } 50%, 100% { color: var(--mute); background: none; border-color: var(--line); } }
+@keyframes chipR { 0%, 49% { color: var(--mute); background: none; border-color: var(--line); } 50%, 100% { color: var(--ink); background: var(--green); border-color: var(--green); } }
+.zzz { position: absolute; font-family: var(--font-mono); color: var(--violet); font-size: 1.6cqw; }
+
+/* ---------- scene 3: voice ---------- */
+.wave { display: flex; align-items: center; gap: .6cqw; height: 9cqw; margin-top: 3cqw; }
+.wave span { width: 1cqw; background: var(--red); height: 100%; transform-origin: center; animation: eq calc(.9s * var(--k)) ease-in-out infinite alternate; }
+.wave span:nth-child(3n) { background: var(--violet); } .wave span:nth-child(5n) { background: var(--green); }
+@keyframes eq { from { transform: scaleY(.12); } to { transform: scaleY(1); } }
+.say { margin-top: 2.2cqw; font-family: var(--font-mono); font-size: 2.6cqw; }
+.say q { quotes: none; }
+.say q::before { content: "“"; color: var(--red); } .say q::after { content: "”"; color: var(--red); }
+.type { display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom; }
+.on .type { animation: typing calc(var(--for, 1.6) * var(--k) * 1s) steps(var(--n, 24), end) calc(var(--at, 0) * var(--k) * 1s) both; }
+@keyframes typing { from { width: 0; } to { width: calc(var(--n, 24) * 1ch); } }
+.card { position: relative; background: var(--ink-2); border: 1px solid var(--line); padding: 1.4cqw 2cqw; clip-path: var(--cut); font-size: 1.9cqw; }
+.card small { display: block; font-family: var(--font-mono); font-size: 1.2cqw; color: var(--red); letter-spacing: .18em; margin-bottom: .5cqw; text-transform: uppercase; }
+.card.g small { color: var(--green); }
+.cards { position: absolute; right: 6cqw; top: 8cqw; width: 34cqw; display: grid; gap: 1.2cqw; }
+.pill { display: inline-block; margin-top: 1.4cqw; margin-right: 1cqw; padding: .6cqw 1.4cqw; font-family: var(--font-mono); font-size: 1.3cqw; border: 1px solid var(--line); color: var(--mute); }
+.pill.ok { color: var(--ink); background: var(--green); border-color: var(--green); font-weight: 600; }
+
+/* ---------- scene 4: dictation ---------- */
+.keys { display: flex; gap: 1.2cqw; margin-top: 3cqw; font-family: var(--font-mono); font-size: 2.2cqw; }
+.key { padding: 1cqw 2cqw; border: 1px solid var(--line); border-bottom-width: .5cqw; background: var(--ink-2); }
+.on .key { animation: press calc(var(--for, .4) * var(--k) * 1s) var(--ease) calc(var(--at, 0) * var(--k) * 1s) both; }
+@keyframes press { from { transform: translateY(0); } 40% { transform: translateY(.5cqw); border-color: var(--green); color: var(--green); } 100% { transform: translateY(.5cqw); border-color: var(--green); color: var(--green); background: oklch(0.26 0.08 148 / .4); } }
+.field { position: absolute; right: 6cqw; top: 15cqw; width: 40cqw; border: 1px solid var(--line); background: var(--ink-2); padding: 2cqw; font-size: 2.1cqw; min-height: 14cqw; }
+.field .lab { font-family: var(--font-mono); font-size: 1.2cqw; color: var(--mute); letter-spacing: .12em; margin-bottom: 1.2cqw; text-transform: uppercase; display: block; }
+.type { font-family: var(--font-mono); }
+.field .type { font-size: 2.2cqw; }
+.mic { position: absolute; left: 6cqw; top: 29cqw; font-family: var(--font-mono); font-size: 1.6cqw; color: var(--red); display: flex; align-items: center; gap: .8cqw; }
+.mic::before { content: ""; width: 1.4cqw; height: 1.4cqw; border-radius: 50%; background: var(--red); animation: blink calc(.8s * var(--k)) steps(1) infinite; }
+@keyframes blink { 50% { opacity: .2; } }
+
+/* ---------- scene 5: messages ---------- */
+.toasts { position: absolute; left: 6cqw; top: 17cqw; width: 38cqw; display: grid; gap: 1.2cqw; }
+.toast { display: grid; grid-template-columns: 4cqw 1fr auto; gap: 1.4cqw; align-items: center; background: var(--ink-2); border: 1px solid var(--line); padding: 1.2cqw 1.6cqw; font-size: 1.8cqw; }
+.toast .av { width: 4cqw; height: 4cqw; background: oklch(0.4 0.12 292); clip-path: var(--octagon); }
+.toast .av.b { background: oklch(0.55 0.15 148); }
+.toast .n { font-family: var(--font-mono); font-size: 1.3cqw; color: var(--green); }
+.toast em { display: block; font-style: normal; font-size: 1.3cqw; color: var(--mute); font-family: var(--font-mono); }
+.reply { position: absolute; right: 6cqw; top: 19cqw; width: 34cqw; }
+.reply .btns { display: flex; gap: 1cqw; margin-top: 1.2cqw; }
+.ping { position: absolute; right: 6cqw; top: 9cqw; display: flex; gap: .6cqw; align-items: flex-end; height: 3cqw; }
+.ping span { width: .6cqw; background: var(--green); animation: eq calc(.5s * var(--k)) ease-in-out 4 alternate; }
+.ping span:nth-child(2) { animation-delay: .1s; } .ping span:nth-child(3) { animation-delay: .2s; }
+.mute-note { position: absolute; right: 6cqw; top: 13cqw; font-family: var(--font-mono); font-size: 1.4cqw; color: var(--mute); }
+
+/* ---------- scene 6: memory ---------- */
+.mem { position: absolute; left: 6cqw; right: 6cqw; top: 29cqw; display: grid; gap: 1.6cqw; }
+.row { display: grid; grid-template-columns: 22cqw 1fr 9cqw; gap: 1.6cqw; align-items: center; font-family: var(--font-mono); font-size: 1.7cqw; }
+.track { height: 2.6cqw; background: oklch(0.24 0.04 300); border: 1px solid var(--line); position: relative; overflow: hidden; }
+.fill { position: absolute; inset: 0 auto 0 0; background: var(--red); transform-origin: left center; }
+.fill.g { background: var(--green); } .fill.v { background: var(--violet); }
+.on .big-model { animation: bigmodel calc(8s * var(--k)) var(--ease) both; }
+@keyframes bigmodel { 0% { transform: scaleX(0); } 12% { transform: scaleX(1); } 55% { transform: scaleX(1); } 66%, 100% { transform: scaleX(0); } }
+.on .small-model { animation: smallmodel calc(8s * var(--k)) var(--ease) both; }
+@keyframes smallmodel { 0%, 68% { transform: scaleX(0); } 80%, 100% { transform: scaleX(1); } }
+.events { position: absolute; left: 6cqw; top: 22cqw; font-family: var(--font-mono); font-size: 1.5cqw; color: var(--mute); display: flex; gap: 2cqw; }
+.events span { padding: .4cqw 1cqw; border: 1px solid var(--line); }
+.on .e1 { animation: ev calc(8s * var(--k)) steps(1) both; --from: 40; }
+.on .e2 { animation: ev2 calc(8s * var(--k)) steps(1) both; }
+@keyframes ev { 0%, 54% { color: var(--mute); } 55%, 100% { color: var(--ink); background: var(--red); border-color: var(--red); } }
+@keyframes ev2 { 0%, 67% { color: var(--mute); } 68%, 100% { color: var(--ink); background: var(--green); border-color: var(--green); } }
+
+/* ---------- scene 7: safe ---------- */
+.grid4 { position: absolute; left: 6cqw; right: 6cqw; top: 22cqw; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.6cqw; }
+.grid4 .card { font-size: 1.8cqw; min-height: 17cqw; }
+.grid4 .card p { margin: .6cqw 0 0; font-size: 1.5cqw; color: var(--mute); font-family: var(--font-mono); line-height: 1.4; }
+.ic { width: 4cqw; height: 4cqw; display: block; margin-bottom: 1cqw; }
+
+/* ---------- scene 8: close ---------- */
+.s8 { display: none; place-items: center; text-align: center; }
+.s8.on { display: grid; }
+.s8 .big { font-size: 6.6cqw; white-space: nowrap; font-weight: 700; letter-spacing: .06em; line-height: 1; margin: 0; }
+.s8 .big span:nth-child(1) { color: var(--green); } .s8 .big span:nth-child(3) { color: var(--red); }
+.s8 .repo { margin-top: 3cqw; font-family: var(--font-mono); font-size: 2.2cqw; border: 1px solid var(--line); display: inline-block; padding: 1cqw 2.2cqw; background: var(--ink-2); }
+.s8 .fine { margin-top: 2cqw; font-family: var(--font-mono); font-size: 1.4cqw; color: var(--mute); max-width: 70cqw; margin-inline: auto; line-height: 1.6; }
+
+/* ---------- controls ---------- */
+.controls { display: grid; gap: 10px; }
+.bar { height: 4px; background: var(--ink-2); position: relative; }
+.bar i { position: absolute; inset: 0 auto 0 0; width: 0%; background: var(--red); }
+.row-c { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button { font: inherit; font-family: var(--font-mono); font-size: 12px; color: var(--paper); background: var(--ink-2); border: 1px solid var(--line); padding: 8px 14px; cursor: pointer; clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); }
+button:hover { border-color: var(--red); }
+button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: var(--ink); font-weight: 600; }
+.sp { flex: 1; }
+.dots { display: flex; gap: 6px; flex-wrap: wrap; }
+.dots button { padding: 6px 10px; font-size: 11px; color: var(--mute); }
+.dots button[aria-current="true"] { color: var(--paper); border-color: var(--green); }
+.capm { display: none; margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; color: var(--paper); border-left: 3px solid var(--red); padding-left: 10px; }
+.legal { font-family: var(--font-mono); font-size: 10.5px; color: var(--mute); line-height: 1.6; }
+
+@media (max-width: 560px) {
+  .cap { display: none; } .capm { display: block; }
+  .cap { font-size: 2.2cqw; } .tag { font-size: 1.9cqw; }
+  .s1 .line, .toast, .card { font-size: 2.6cqw; } .row { font-size: 2.2cqw; } .grid4 .card p { font-size: 2cqw; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .on [data-a], .presence, .chip, .on .type, .on .key, .wave span, .ping span, .on .big-model, .on .small-model, .mic::before { animation: none !important; }
+  .on .type { width: auto; white-space: normal; }
+  .on .big-model { transform: scaleX(1); } .on .small-model { transform: scaleX(1); }
+  .presence { left: 14%; }
+}
+
+/* Your own captures (docs/media/sceneN.mp4 | .webm | .gif): when one exists it replaces that scene's diagram. */
+.shot { position: absolute; left: 6cqw; right: 6cqw; top: 19cqw; bottom: 6cqw; display: none; margin: 0; background: var(--ink-2); border: 1px solid var(--line); clip-path: var(--cut); }
+.shot video, .shot img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.scene.has-shot .shot { display: block; }
+.scene.has-shot > *:not(.tag):not(.h):not(.shot) { display: none; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Capri <span>in motion</span></h1>
+    <div class="sub" id="status">60 s · plays on its own · space pauses</div>
+  </header>
+
+  <div class="stage" id="stage" role="region" aria-label="Animated presentation of Capri, a desktop companion">
+    <!-- 1 -->
+    <section class="scene s1" data-d="6" data-t="3.3" data-cap="Capri is a small companion that lives on your desktop.">
+      <div>
+        <svg class="mark a-pop" data-a style="--at:0;--for:.7" viewBox="0 0 100 100" aria-hidden="true">
+          <polygon points="30,3 70,3 97,30 97,70 70,97 30,97 3,70 3,30" fill="none" stroke="oklch(0.65 0.245 15)" stroke-width="3"/>
+          <polygon points="50,24 76,50 50,76 24,50" fill="oklch(0.65 0.245 15)"/>
+          <circle cx="50" cy="50" r="7" fill="oklch(0.17 0.035 300)"/><circle cx="50" cy="50" r="3.2" fill="oklch(0.88 0.24 148)"/>
+        </svg>
+        <h2 class="big a-glitch" data-a style="--at:.5;--for:.8">CAPR<b>I</b></h2>
+        <p class="line a-rise" data-a style="--at:1.5;--for:.8">A desktop companion that <span>listens</span> when you call her, and does her thinking on your PC.</p>
+      </div>
+    </section>
+    <!-- 2 -->
+    <section class="scene" data-d="8" data-t="0" data-media="scene2" data-cap="She sits on your taskbar and waits. Left or right, your call.">
+      <div class="tag a-fade" data-a>01 · She lives on your desktop</div>
+      <h2 class="h a-rise" data-a style="--at:.2">Always there. <em>Never in the way.</em></h2>
+      <div class="desk a-fade" data-a style="--at:.4">
+        <div class="win"><i></i><u></u><u></u><u></u></div>
+        <div class="win win2"><i></i><u></u><u></u></div>
+        <div class="chips"><span class="chip l">Left</span><span class="chip r">Right</span></div>
+        <div class="task"><b style="left:38%"></b><b style="left:42%"></b><b style="left:46%"></b><b style="left:50%"></b><b style="left:54%"></b></div>
+        <div class="presence" aria-hidden="true">
+          <svg viewBox="0 0 100 100"><polygon points="30,3 70,3 97,30 97,70 70,97 30,97 3,70 3,30" fill="oklch(0.2 0.05 300)" stroke="oklch(0.65 0.245 15)" stroke-width="4"/><polygon points="50,26 74,50 50,74 26,50" fill="oklch(0.65 0.245 15)"/></svg>
+        </div>
+      </div>
+    </section>
+    <!-- 3 -->
+    <section class="scene" data-d="9" data-t="5" data-media="scene3" data-cap="Say her name, then an order. A model on your PC does the thinking.">
+      <div class="tag a-fade" data-a>02 · Talk to her</div>
+      <h2 class="h a-rise" data-a style="--at:.2">Say “Capri”. <em>Then just ask.</em></h2>
+      <div class="wave a-fade" data-a style="--at:.6"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="say mono"><q><span class="type" data-a style="--at:1.4;--for:2;--n:20">Capri, open my music</span></q></div>
+      <div class="cards">
+        <div class="card a-slide" data-a style="--at:4;--for:.7"><small>Order</small>Opening your music player.</div>
+        <div class="card g a-slide" data-a style="--at:5.2;--for:.7"><small>Local first</small>Ollama on your PC answers. Claude only when you allow it.</div>
+      </div>
+    </section>
+    <!-- 4 -->
+    <section class="scene" data-d="8" data-t="4.4" data-media="scene4" data-cap="Hold three keys, talk, let go. The words land where your cursor is.">
+      <div class="tag a-fade" data-a>03 · Dictation anywhere</div>
+      <h2 class="h a-rise" data-a style="--at:.2">Hold. Talk. <em>Let go.</em></h2>
+      <div class="keys"><span class="key" style="--at:1;--for:.4" data-a>Ctrl</span><span class="key" style="--at:1.3;--for:.4" data-a>Alt</span><span class="key" style="--at:1.6;--for:.4" data-a>Space</span></div>
+      <div class="mic a-fade" data-a style="--at:2.2">listening…</div>
+      <div class="field a-rise" data-a style="--at:.8">
+        <span class="lab">Any app · your cursor</span>
+        <span class="type" data-a style="--at:3.4;--for:3;--n:25">Review moved to Thursday.</span>
+      </div>
+    </section>
+    <!-- 5 -->
+    <section class="scene" data-d="8" data-t="0" data-media="scene5" data-cap="New messages arrive as quiet cards with a ping. She does not read them out.">
+      <div class="tag a-fade" data-a>04 · Messages, quietly</div>
+      <h2 class="h a-rise" data-a style="--at:.2">A ping. <em>Not a monologue.</em></h2>
+      <div class="toasts">
+        <div class="toast a-slide" data-a style="--at:1;--for:.6"><span class="av"></span><div>Ana<em>can you send the file?</em></div><span class="n">×2</span></div>
+        <div class="toast a-slide" data-a style="--at:2;--for:.6"><span class="av b"></span><div>Studio chat<em>new messages</em></div><span class="n">×4</span></div>
+      </div>
+      <div class="ping a-fade" data-a style="--at:1"><span style="height:40%"></span><span style="height:100%"></span><span style="height:60%"></span></div>
+      <div class="mute-note a-fade" data-a style="--at:1.4">sound on · voice off</div>
+      <div class="card g reply a-pop" data-a style="--at:3.6;--for:.6"><small>Reply</small>Write it, she sends it.<div class="btns"><span class="pill">Cancel</span><span class="pill ok">Send</span></div></div>
+    </section>
+    <!-- 6 -->
+    <section class="scene" data-d="8" data-t="4.4" data-media="scene6" data-cap="One model in memory at a time. It leaves when you stop. A small one steps in for heavy apps.">
+      <div class="tag a-fade" data-a>05 · Light on your PC</div>
+      <h2 class="h wide a-rise" data-a style="--at:.2">Big brain when you chat. <em>Gone when you don’t.</em></h2>
+      <div class="events"><span class="e1">2 min idle</span><span class="e2">Illustrator opens</span></div>
+      <div class="mem">
+        <div class="row"><span>qwen3:30b</span><div class="track"><div class="fill big-model" style="width:100%"></div></div><span>19 GB</span></div>
+        <div class="row"><span>gemma3:4b</span><div class="track"><div class="fill g small-model" style="width:15%"></div></div><span>2.9 GB</span></div>
+      </div>
+    </section>
+    <!-- 7 -->
+    <section class="scene" data-d="7" data-t="0" data-media="scene7" data-cap="She asks before she touches anything, and she never deletes your files.">
+      <div class="tag a-fade" data-a>06 · Safe by default</div>
+      <h2 class="h a-rise" data-a style="--at:.2">She asks first. <em>Always.</em></h2>
+      <div class="grid4">
+        <div class="card a-rise" data-a style="--at:.8"><svg class="ic" viewBox="0 0 40 40"><rect x="4" y="9" width="32" height="22" fill="none" stroke="oklch(0.88 0.24 148)" stroke-width="2.4"/><path d="M10 20h8m6 0h6" stroke="oklch(0.88 0.24 148)" stroke-width="2.4"/></svg>Allow / Deny<p>Cards before anything changes.</p></div>
+        <div class="card a-rise" data-a style="--at:1.2"><svg class="ic" viewBox="0 0 40 40"><polygon points="12,3 28,3 37,12 37,28 28,37 12,37 3,28 3,12" fill="none" stroke="oklch(0.65 0.245 15)" stroke-width="2.4"/><circle cx="20" cy="20" r="5" fill="oklch(0.65 0.245 15)"/></svg>Local first<p>Her brain runs on your PC.</p></div>
+        <div class="card a-rise" data-a style="--at:1.6"><svg class="ic" viewBox="0 0 40 40"><path d="M6 20h28M20 6v28" stroke="oklch(0.62 0.22 292)" stroke-width="2.4"/><rect x="8" y="8" width="24" height="24" fill="none" stroke="oklch(0.62 0.22 292)" stroke-width="2.4"/></svg>Backup<p>Copies what changed. Deletes nothing.</p></div>
+        <div class="card a-rise" data-a style="--at:2"><svg class="ic" viewBox="0 0 40 40"><path d="M20 4l14 6v10c0 8-6 13-14 16C12 33 6 28 6 20V10z" fill="none" stroke="oklch(0.88 0.24 148)" stroke-width="2.4"/><path d="M13 20l5 5 9-10" fill="none" stroke="oklch(0.88 0.24 148)" stroke-width="2.4"/></svg>Download scan<p>Checks new files with Defender.</p></div>
+      </div>
+    </section>
+    <!-- 8 -->
+    <section class="scene s8" data-d="6" data-t="3.3" data-cap="Open source. Take her, change her, make her yours.">
+      <div>
+        <h2 class="big a-glitch" data-a style="--at:.2;--for:.8"><span>FREE</span> · OPEN · <span>YOURS</span></h2>
+        <div class="repo a-rise" data-a style="--at:1.4">github.com/dodoelmapache/capri-desktop</div>
+        <p class="fine a-fade" data-a style="--at:2.2">MIT License · built on capri-desktop by mochiiwuff · fan project, not affiliated with CD PROJEKT RED, Studio Trigger or Netflix.</p>
+      </div>
+    </section>
+    <div class="cap" id="cap" aria-live="off"></div>
+  </div>
+
+  <p class="capm" id="capm" aria-live="polite"></p>
+  <div class="controls">
+    <div class="bar" aria-hidden="true"><i id="prog"></i></div>
+    <div class="row-c">
+      <button id="play" type="button" aria-pressed="false">Pause</button>
+      <button id="prev" type="button" aria-label="Previous scene">‹</button>
+      <button id="next" type="button" aria-label="Next scene">›</button>
+      <button id="again" type="button">Replay</button>
+      <span class="sp"></span>
+      <button id="full" type="button" aria-pressed="true">Full · 60 s</button>
+      <button id="tease" type="button" aria-pressed="false">Teaser · 20 s</button>
+    </div>
+    <div class="dots" id="dots"></div>
+    <div class="legal">Diagrams show her interface and behavior. Clips, when present, are screen recordings of the real app. Fan project, not affiliated with CD PROJEKT RED, Studio Trigger or Netflix.</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var stage = document.getElementById('stage');
+  var all = Array.prototype.slice.call(stage.querySelectorAll('.scene'));
+  var capEl = document.getElementById('cap');
+  var prog = document.getElementById('prog');
+  var statusEl = document.getElementById('status');
+  var playBtn = document.getElementById('play');
+  var dotsEl = document.getElementById('dots');
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var mode = 'full';          // 'full' | 'tease'
+  var list = [];              // scenes in this mode
+  var idx = 0;
+  var elapsed = 0;            // seconds inside the current scene
+  var last = 0;
+  var playing = !reduced;
+  var raf = 0;
+
+  function dur(sc) { return mode === 'tease' ? Number(sc.dataset.t) : Number(sc.dataset.d); }
+  function build() {
+    list = all.filter(function (s) { return mode === 'full' || Number(s.dataset.t) > 0; });
+    var total = list.reduce(function (a, s) { return a + dur(s); }, 0);
+    stage.style.setProperty('--k', mode === 'tease' ? '0.55' : '1');
+    statusEl.textContent = Math.round(total) + ' s · ' + (reduced ? 'use the arrows' : 'plays on its own · space pauses');
+    dotsEl.textContent = '';
+    list.forEach(function (s, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.textContent = String(i + 1);
+      b.setAttribute('aria-label', 'Go to scene ' + (i + 1));
+      b.addEventListener('click', function () { show(i); });
+      dotsEl.appendChild(b);
+    });
+  }
+  function loadShots() {
+    all.forEach(function (sc) {
+      var n = sc.dataset.media; if (!n) return;
+      var fig = document.createElement('figure'); fig.className = 'shot'; sc.appendChild(fig);
+      var v = document.createElement('video');
+      v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.controls = reduced;
+      ['mp4', 'webm'].forEach(function (ext) { var s = document.createElement('source'); s.src = 'media/' + n + '.' + ext; s.type = 'video/' + ext; v.appendChild(s); });
+      v.addEventListener('loadeddata', function () { if (!sc.classList.contains('has-shot')) { fig.appendChild(v); sc.classList.add('has-shot'); } });
+      var im = new Image(); im.alt = '';
+      im.onload = function () { if (!sc.classList.contains('has-shot')) { fig.appendChild(im); sc.classList.add('has-shot'); } };
+      im.src = 'media/' + n + '.gif';
+      v.load();
+    });
+  }
+  function show(i) {
+    idx = (i + list.length) % list.length;
+    elapsed = 0; last = performance.now();
+    all.forEach(function (s) { s.classList.remove('on'); });
+    var sc = list[idx];
+    void sc.offsetWidth;
+    sc.classList.add('on');
+    stage.querySelectorAll('video').forEach(function (v) { try { v.currentTime = 0; } catch (e) { /* not ready */ } });
+    capEl.textContent = sc.dataset.cap || ''; document.getElementById('capm').textContent = sc.dataset.cap || '';
+    Array.prototype.forEach.call(dotsEl.children, function (b, n) { b.setAttribute('aria-current', n === idx ? 'true' : 'false'); });
+    setPlaying(playing);
+  }
+  function setPlaying(p) {
+    playing = p;
+    playBtn.textContent = p ? 'Pause' : 'Play';
+    playBtn.setAttribute('aria-pressed', String(!p));
+    stage.querySelectorAll('*').forEach(function (el) { el.style.animationPlayState = p ? 'running' : 'paused'; });
+    stage.querySelectorAll('video').forEach(function (v) { if (p && !reduced) v.play().catch(function () {}); else v.pause(); });
+  }
+  function tick(now) {
+    raf = requestAnimationFrame(tick);
+    if (!playing) { last = now; return; }
+    var dt = (now - last) / 1000; last = now;
+    elapsed += dt;
+    var d = dur(list[idx]);
+    var before = 0;
+    for (var i = 0; i < idx; i++) before += dur(list[i]);
+    var total = list.reduce(function (a, s) { return a + dur(s); }, 0);
+    prog.style.width = Math.min(100, ((before + Math.min(elapsed, d)) / total) * 100) + '%';
+    if (elapsed >= d) { if (idx === list.length - 1) { setPlaying(false); prog.style.width = '100%'; } else show(idx + 1); }
+  }
+  function setMode(m) {
+    mode = m;
+    document.getElementById('full').setAttribute('aria-pressed', String(m === 'full'));
+    document.getElementById('tease').setAttribute('aria-pressed', String(m === 'tease'));
+    build(); playing = !reduced; show(0);
+  }
+  playBtn.addEventListener('click', function () {
+    if (!playing && idx === list.length - 1 && elapsed >= dur(list[idx])) { show(0); setPlaying(true); } else setPlaying(!playing);
+  });
+  document.getElementById('prev').addEventListener('click', function () { show(idx - 1); });
+  document.getElementById('next').addEventListener('click', function () { show(idx + 1); });
+  document.getElementById('again').addEventListener('click', function () { playing = !reduced; show(0); });
+  document.getElementById('full').addEventListener('click', function () { setMode('full'); });
+  document.getElementById('tease').addEventListener('click', function () { setMode('tease'); });
+  document.addEventListener('keydown', function (e) {
+    if (e.target && e.target.tagName === 'BUTTON' && e.key === ' ') return;
+    if (e.key === ' ') { e.preventDefault(); playBtn.click(); }
+    else if (e.key === 'ArrowRight') show(idx + 1);
+    else if (e.key === 'ArrowLeft') show(idx - 1);
+  });
+  loadShots();
+  setMode('full');
+  raf = requestAnimationFrame(function (n) { last = n; tick(n); });
+})();
+</script>
