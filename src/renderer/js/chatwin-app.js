@@ -5,6 +5,7 @@ import { parse, render } from './md.js';
 import { imageAsk, imageEditAsk, imageEditFollow, paletteAsk } from './intents.js';
 import { ui } from './uisound.js';
 import { limitLine } from './usagefmt.js';
+import { Speaker } from './talk.js';
 
 const TEXT = {
   es: {
@@ -82,7 +83,7 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
   const els = {
     list: $('list'), thread: $('thread'), input: $('input'), send: $('send'), stop: $('stop'), plus: $('plus'), chips: $('chips'), find: $('find'),
     fresh: $('new'), title: $('title'), web: $('web'), webWrap: $('webWrap'), jump: $('jump'), engine: $('engine'), engineLabel: $('engineLabel'),
-    webLabel: $('webLabel'), hint: $('hint'), note: $('engineNote'), imageMode: $('imageMode'), topFace: $('topFace'), mic: $('mic'), app: doc.querySelector?.('.app') || null, composer: $('composer'), designTab: $('designTab'),
+    webLabel: $('webLabel'), hint: $('hint'), note: $('engineNote'), imageMode: $('imageMode'), topFace: $('topFace'), mic: $('mic'), voiceBtn: $('voiceBtn'), app: doc.querySelector?.('.app') || null, composer: $('composer'), designTab: $('designTab'),
   };
   // the last picture she made in this conversation (what "ahora hazla azul" refers to), and the readable colour on top of one
   const recentImage = (s) => {
@@ -547,6 +548,7 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
         state.orders = state.orders.slice(-60);
         sfx('send');
         renderThread({ animateLast: false });
+        if (state.voiceMode && order.line) speaker.say(order.line, info.lang); // (an order done by voice: she says what she did)
         return;
       }
     }
@@ -626,6 +628,7 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
     s.web = state.web;
     const id = now();
     state.sending = { id, engine, text: '' };
+    state.line = state.voiceMode ? speaker.begin(info.lang) : null;
     setBusy(true);
     renderThread({ animateUser: true });
     saveNow().then(refreshList);
@@ -657,6 +660,7 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
       s.claude.started = true;
       saveNow();
     }
+    if (state.line) { if (res.ok) state.line.end(res.text || partial || ''); else speaker.stop(); state.line = null; }
     if (res.ok) {
       s.messages.push({ role: 'assistant', content: res.text || partial || '…', via: engine, ...(res.files?.length ? { files: res.files } : {}) });
       if (res.claudeStarted) s.claude.started = true;
@@ -832,7 +836,8 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
   cw.onDelta(({ id, text }) => {
     if (state.sending?.id !== id) return;
     state.sending.text += text;
-    voice?.play('blip', { mood: 'talk' }); // her blips as the words come in, as in the bubble
+    state.line?.feed(state.sending.text); // (voice mode: she says each finished sentence while the rest is still being written)
+    if (!state.voiceMode) voice?.play('blip', { mood: 'talk' }); // her blips as the words come in, as in the bubble
     schedulePaint();
   });
   cw.onSessionsChanged(async () => {
@@ -890,6 +895,35 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
     }
   }
 
+  // ---------- voice mode (the VOZ button): you talk, she answers out loud sentence by sentence while it is written, and listens again ----------
+  const speaker = new Speaker(() => ({ speak: true, speakMode: 'always', announce: 'always', muted: info.muted, volume: info.volume, ...(info.voice || {}) }), cw);
+  const END_VOICE = /^[\s¡]*(?:(?:vale|ok|listo|bueno)[\s,]+)?(?:eso\s+es\s+todo|es\s+todo|nada\s+m[aá]s|hasta\s+luego|chao|chau|adi[oó]s|that'?s\s+(?:all|it)|goodbye|bye)[\s.!¡?¿,]*$/i;
+  const STOP_TALK = /^[\s¡]*(?:para|pará|calla|c[aá]llate|espera|basta|silencio|stop|wait|shut\s+up)[\s.!¡?¿,]*$/i;
+  state.voiceMode = false;
+  state.voiceIdle = 0;
+  function setVoiceMode(on) {
+    state.voiceMode = on;
+    state.voiceIdle = 0;
+    els.voiceBtn.classList.toggle('is-on', on);
+    els.voiceBtn.setAttribute('aria-pressed', String(on));
+    if (!on) { speaker.stop(); state.line = null; if (state.listening) state.listening.finish(); }
+    else listen();
+  }
+  els.voiceBtn.addEventListener('click', () => {
+    if (state.voiceMode && speaker.speaking) { speaker.stop(); state.line = null; listen(); return; } // (pressed while she talks: she shuts up and listens)
+    setVoiceMode(!state.voiceMode);
+  });
+  // once she has finished talking (or there was nothing to say), listen again; a little wait so her own voice is not heard
+  function voiceNext() {
+    if (!state.voiceMode) return;
+    const tick = () => {
+      if (!state.voiceMode) return;
+      if (speaker.speaking || state.sending || state.asking) { setTimeout(tick, 250); return; }
+      setTimeout(() => { if (state.voiceMode && !state.listening && !state.sending && !speaker.speaking) listen(); }, 450);
+    };
+    tick();
+  }
+
   async function listen() {
     if (state.listening) { state.listening.finish(); return; }
     if (state.sending || state.asking) return;
@@ -920,7 +954,7 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
       ctx.close().catch(() => {});
       const restore = () => { applyImageMode(); };
       try {
-        if (!s.heard) { notice(T.heardNothing); return; }
+        if (!s.heard) { if (state.voiceMode && ++state.voiceIdle >= 2) { setVoiceMode(false); } else if (state.voiceMode) { voiceNext(); } notice(T.heardNothing); return; }
         els.input.placeholder = T.transcribing;
         const blob = new Blob(chunks, { type: rec.mimeType || mime || 'audio/webm' });
         const wav = await blobToWav(blob).catch(() => null);
@@ -929,10 +963,14 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
         if (!res?.ok) { notice(res?.code === 'nokey' ? T.noStt : T.failed(res?.error || '')); return; }
         const heard = String(res.text || '').trim();
         if (!heard || /^[\s\[\(♪*]*(?:aplausos?|m[uú]sica|risas?|silencio)[\s\]\)♪*.!]*$|amara\.org|subt[ií]tulos/i.test(heard)) { notice(T.heardNothing); return; }
+        state.voiceIdle = 0;
+        if (state.voiceMode && END_VOICE.test(heard)) { setVoiceMode(false); return; }
+        if (state.voiceMode && STOP_TALK.test(heard)) { speaker.stop(); voiceNext(); return; }
         els.input.value = heard;
         grow();
         restore();
         await send();
+        voiceNext();
       } finally {
         restore();
       }

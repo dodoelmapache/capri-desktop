@@ -1279,6 +1279,7 @@ function registerIpc() {
     return {
       lang: resolveLang(cfg.lang), look: cfg.look === 'classic' ? 'classic' : 'hud', userName: cfg.userName || '', provider: cfg.provider, model,
       muted: Boolean(cfg.muted), volume: typeof cfg.volume === 'number' ? cfg.volume : 0.7, // her sound settings are the window's too
+      voice: { speakVoice: cfg.speakVoice || '', speakLang: cfg.speakLang || '', ttsFx: cfg.ttsFx, announce: cfg.announce, dnd: cfg.dnd === true }, // (her voice, for the window's Voz button)
       sees: cfg.provider === 'claude' || (cfg.provider === 'ollama' ? llm.VISION_MODEL.test(model || '') : /gemini|gpt-4|gpt-5|vision|llava|qwen.*vl|pixtral|claude|grok/i.test(model || '')),
       engine: ['local', 'haiku', 'sonnet', 'opus'].includes(cfg.winEngine) ? cfg.winEngine : 'local',
       web: cfg.winWeb !== false,
