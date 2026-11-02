@@ -14,6 +14,8 @@ const LEVEL = 14;            // 0..128, how loud counts as speech
 const WAKE = /^(?:(?:hey|hei|hola|oye|ey|eh|ok|okay|okey|hello|hi)[\s,.!¡]*)?(capri|capry|kapri|capi|cabri|capris|cafri|capre|kapry|cabry|capr[ií]e?)\b[\s,.:;!¡?¿-]*/i;
 const HF_MIN_LEVEL = 0.025;   // 0..1, never less than this counts as speech
 const HF_QUIET_MS = 600;      // quiet this long: the phrase is over
+const CONVO_MS = 45000;      // the same, in conversation mode
+const END_CONVO = /^[\s¡]*(?:(?:vale|ok|listo|bueno)[\s,]+)?(?:eso\s+es\s+todo|es\s+todo|nada\s+m[aá]s|gracias[\s,]+(?:eso\s+es\s+todo|nada\s+m[aá]s|capri)|hasta\s+luego|chao|chau|adi[oó]s|that'?s\s+(?:all|it)|goodbye|bye)[\s.!¡?¿,]*$/i; // (ends conversation mode)
 const FOLLOW_MS = 9000;       // after a voice command, and once she has answered, this long you can go on talking without saying "Capri" again
 const WARM_MS = 20000;        // the mic stays open this long after a recording: the next one starts with your first word, not after it
 const HF_MAX_MS = 9000;       // a wake phrase is short
@@ -644,11 +646,11 @@ export class Listener {
     if (this.state !== 'idle') {
       w.seg = null;
       w.ring.length = 0;
-      if (this.followUntil) this.followUntil = Date.now() + FOLLOW_MS; // the window counts from when she finishes
+      if (this.followUntil) this.followUntil = Date.now() + this.followMs; // the window counts from when she finishes
       return;
     }
     const talking = Boolean(this.speaker.speaking);
-    if (talking && this.followUntil) this.followUntil = Date.now() + FOLLOW_MS; // (the window counts from when she finishes talking)
+    if (talking && this.followUntil) this.followUntil = Date.now() + this.followMs; // (the window counts from when she finishes talking)
     const now = performance.now();
     const limit = talking ? Math.max(HF_MIN_LEVEL * 2.5, w.floor * 6) : Math.max(HF_MIN_LEVEL, w.floor * 3);
     if (!w.seg) {
@@ -724,11 +726,18 @@ export class Listener {
     if (!text || (GHOST.test(text) && text.length < 70)) { this.cue(null); return; }
     const plain = text.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // same length: accents drop
     const m = WAKE.exec(plain);
-    if (seg.talk && !m && !hit && STOP.test(text) && this.speaker.speaking) { this.speaker.stop(); this.cue(null); this.followUntil = Date.now() + FOLLOW_MS; return; } // ("para" over her voice: she shuts up and waits)
+    if (seg.talk && !m && !hit && STOP.test(text) && this.speaker.speaking) { this.speaker.stop(); this.cue(null); this.followUntil = Date.now() + this.followMs; return; } // ("para" over her voice: she shuts up and waits)
+    if (!m && !hit && this.getCfg().convoMode === true && this.followUntil && Date.now() < this.followUntil && END_CONVO.test(text)) { // "eso es todo": the conversation ends
+      this.followUntil = 0;
+      this.cue(null);
+      this.voice.play('tick');
+      this.panel.say({ kind: 'info', face: 'smug', line: String(this.chat.brain?.lang).startsWith('es') ? 'Listo, aquí estoy cuando me llames.' : 'Done, I am here when you call.', compact: true, hold: 3000 });
+      return;
+    }
     if (seg.talk && !m && !hit) { this.cue(null); return; } // (said while she was talking, without her name: probably her own voice or the room)
     if (m && this.speaker.speaking) this.speaker.stop(); // (you called her over her own voice: she stops and listens)
     if (!m && hit && seg.blocks.length <= 22) { // only her name (about 2 s or less), and the speech service wrote it down badly: she listens
-      this.followUntil = Date.now() + FOLLOW_MS;
+      this.followUntil = Date.now() + this.followMs;
       this.cue(null);
       this.woke('');
       return;
@@ -737,9 +746,9 @@ export class Listener {
       if (!(this.followUntil && Date.now() < this.followUntil)) this.cue(null);
       // she has just been talking with you: no need to say her name again, what you say next is for her
       // (only an order for the PC counts there: a sound, a video playing nearby or someone talking is not for her, and never becomes a conversation)
-      if (this.followUntil && Date.now() < this.followUntil && text.length >= 3 && await Promise.resolve(this.chat.systemOrder?.(text)).catch(() => null)) {
+      if (this.followUntil && Date.now() < this.followUntil && text.length >= 3 && (await Promise.resolve(this.chat.systemOrder?.(text)).catch(() => null) || (this.getCfg().convoMode === true && text.length >= 6))) { // (conversation mode: anything you say counts, not only orders)
         this.comeOut();
-        this.followUntil = Date.now() + FOLLOW_MS;
+        this.followUntil = Date.now() + this.followMs;
         this.cue(null);
         this.voice.play('tick');
         this.capri.pulse();
@@ -751,10 +760,13 @@ export class Listener {
       }
       return;
     }
-    this.followUntil = Date.now() + FOLLOW_MS;
+    this.followUntil = Date.now() + this.followMs;
     this.cue(null);
     this.woke(text.slice(m[0].length).replace(/^[\s,.:;!¡?¿-]+/, '').trim());
   }
+
+  // how long you can go on talking without her name after she answers: 9 s, or 45 s in conversation mode (convoMode)
+  get followMs() { return this.getCfg().convoMode === true ? CONVO_MS : FOLLOW_MS; }
 
   // called by her name or her key while she is folded in her biochip: she comes out (the chat used to do it when it opened; it stays shut now)
   async comeOut() {
@@ -924,7 +936,7 @@ export class Listener {
       this.pill.set(null);
       const text = res.text.trim();
       if (!text || (GHOST.test(text) && text.length < 70)) return this.note(t.nothing);
-      this.followUntil = Date.now() + FOLLOW_MS; // (hands free: you can go on without her name)
+      this.followUntil = Date.now() + this.followMs; // (hands free: you can go on without her name)
       if (!this.chat.open) { // a plain order (open, play, pause...) is done with a small card; only a real conversation opens her chat
         if (await this.chat.quickVoice?.(text).catch(() => false)) return undefined;
         await this.chat.start();

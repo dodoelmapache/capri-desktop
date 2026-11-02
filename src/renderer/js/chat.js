@@ -690,6 +690,7 @@ export class Chat {
 
   async send(text, { voice = false } = {}) {
     if (this.turn || !this.open) return;
+    this.lastVoice = Boolean(voice); // (the long-thread warning is said out loud when you were talking to her)
     if (this.speaker?.important && GREETING.test(String(text).trim())) voice = true; // (greetings and goodbyes are said out loud in the 'only what matters' mode)
     if (!this.session) await this.loadCurrent(); // the window changed things meanwhile: start from what's on disk
     if (this.resetPending) { // she asked "start over?": a yes or a no, else she drops it and this is a new message
@@ -2584,7 +2585,9 @@ export class Chat {
     if (!this.open || this.turn || this.turns < WARN_AT || this.turns - this.warnedAt < WARN_EVERY) return;
     this.warnedAt = this.turns;
     this.resetPending = true;
-    this.addLine(answer, fmt(this.t.longWarn, { n: this.turns }));
+    const warnLine = fmt(this.t.longWarn, { n: this.turns });
+    this.addLine(answer, warnLine);
+    if (this.lastVoice && this.speaker?.enabled) this.speaker.say(warnLine, this.brain.lang); // (talking by voice: you hear that it spends your Claude limit)
     this.panel.setActions(
       [{ id: 'yes', label: this.t.resetYes, primary: true }, { id: 'no', label: this.t.resetNo }],
       (id) => this.answerReset(null, id === 'yes'),

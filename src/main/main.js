@@ -716,6 +716,10 @@ function rebuildTray() {
           type: 'checkbox', checked: Boolean(cfg.handsFree), click: (item) => updateConfig({ handsFree: item.checked }),
         },
         {
+          label: resolveLang(cfg.lang) === 'es' ? 'Modo conversación (sigue escuchando, di «eso es todo» para terminar)' : 'Conversation mode (keeps listening, say "that is all" to end)',
+          type: 'checkbox', checked: cfg.convoMode === true, click: (item) => updateConfig(item.checked ? { convoMode: true, handsFree: true } : { convoMode: false }),
+        },
+        {
           label: resolveLang(cfg.lang) === 'es' ? 'Resumen del día solo (mañana y noche)' : 'Morning and evening summary on her own',
           type: 'checkbox', checked: cfg.briefing !== false, click: (item) => updateConfig({ briefing: item.checked }),
         },
