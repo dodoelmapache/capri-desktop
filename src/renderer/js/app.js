@@ -775,6 +775,11 @@ async function boot() {
       case 'listen': // Ctrl+Alt+V or her menu's Voice: talk to her
         listener.toggle();
         break;
+      case 'windowCall': // a voice call in her big window: this bubble neither listens nor talks until it ends
+        listener.windowCall = Boolean(cmd.on);
+        speaker.windowCall = Boolean(cmd.on);
+        if (cmd.on) { speaker.stop(); listener.followUntil = 0; listener.cue?.(null); }
+        break;
       case 'wakeHit': // openWakeWord heard her name (wakeword.js)
         listener.wakeHit();
         break;

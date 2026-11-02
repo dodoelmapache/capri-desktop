@@ -96,7 +96,7 @@ export class Speaker {
     const cfg = this.getCfg();
     // (do not disturb: no voice at all; the automatic quiet too, except that of a game while she says what she sees of the match: gameVoiceUntil)
     const auto = !cfg.dndAuto || (cfg.dndAuto === 'game' && Date.now() < (this.gameVoiceUntil || 0));
-    return cfg.speak !== false && cfg.speakMode !== 'never' && cfg.dnd !== true && auto && (this.available || Boolean(this.host));
+    return !this.windowCall && cfg.speak !== false && cfg.speakMode !== 'never' && cfg.dnd !== true && auto && (this.available || Boolean(this.host));
   }
 
   // should this answer be read out loud? By default only when you asked her by voice (speakMode 'voice')
@@ -429,6 +429,7 @@ export class Listener {
 
   // Ctrl+Alt+V: start listening, or (while listening) stop now
   async toggle() {
+    if (this.windowCall) return undefined;
     if (this.state === 'recording') return this.finish();
     if (this.state !== 'idle') return undefined;
     this.state = 'starting';
@@ -510,7 +511,7 @@ export class Listener {
   }
 
   paused() {
-    return this.state !== 'idle' || this.speaker.speaking || Boolean(this.chat.turn);
+    return this.windowCall || this.state !== 'idle' || this.speaker.speaking || Boolean(this.chat.turn);
   }
 
   async watch() {
@@ -689,6 +690,7 @@ export class Listener {
   }
 
   async heard(w, seg) {
+    if (this.windowCall) { this.cue(null); return; } // (the call is in her big window)
     if (seg.loud < 3 || this.state !== 'idle' || !this.watcher) { if (this.state === 'idle') this.cue(null); return; } // a click, a cough
     const hit = Boolean(seg.hit) || (this.wakeHitAt && Date.now() - this.wakeHitAt < 2500); // her name was heard in this phrase
     if (this.wakeOn && this.getCfg().wakeStrict === true && !hit && !(this.followUntil && Date.now() < this.followUntil)) { this.cue(null); return; } // (not for her: no transcription spent)

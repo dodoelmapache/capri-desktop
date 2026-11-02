@@ -260,9 +260,10 @@ function organizeRun() {
 }
 
 // Ctrl+Alt+V: the microphone of her big window when that window is the one in front, else the one of her bubble
+let windowCall = false; // a voice call is going on in her big window: the bubble on the desktop stays out of it
 function listenKey() {
   const win = chatwin.current?.();
-  if (win && !win.isDestroyed() && win.isFocused()) win.webContents.send('chatwin:listen');
+  if (win && !win.isDestroyed() && (win.isFocused() || windowCall)) win.webContents.send('chatwin:listen');
   else sendCommand('listen');
 }
 
@@ -1292,6 +1293,7 @@ function registerIpc() {
       ].filter(Boolean).join('\n'),
     };
   });
+  ipcMain.on('chatwin:call', (_e, on) => { windowCall = Boolean(on); sendCommand('windowCall', { on: windowCall }); });
   ipcMain.handle('chatwin:prefs', (_e, patch = {}) => {
     const next = {};
     if (['local', 'haiku', 'sonnet', 'opus'].includes(patch.winEngine)) next.winEngine = patch.winEngine;

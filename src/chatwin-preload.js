@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('cw', {
   sessionArchive: (id, on) => ipcRenderer.invoke('session:archive', id, on),
   orderTry: (request) => ipcRenderer.invoke('order:try', request),
   onListen: on('chatwin:listen'),
+  voiceCall: (on) => ipcRenderer.send('chatwin:call', Boolean(on)),
   clipsList: () => ipcRenderer.invoke('clips:list'),
   ttsStatus: () => ipcRenderer.invoke('tts:status'),
   ttsSpeak: (request) => ipcRenderer.invoke('tts:speak', request),

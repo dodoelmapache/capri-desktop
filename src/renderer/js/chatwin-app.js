@@ -634,6 +634,8 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
     renderThread({ animateUser: true });
     saveNow().then(refreshList);
 
+    // in a call she is heard, not read: short, spoken sentences (long markdown answers sound choppy and take forever to say)
+    const callNote = state.voiceMode ? (info.lang === 'en' ? '(We are on a voice call: answer out loud like a person, in 1 to 3 short natural sentences, no markdown, lists, emojis or links. If there is a lot to say, give the gist and ask if they want more.)' : '(Estamos en una llamada de voz: responde como hablando, en 1 a 3 frases cortas y naturales, sin markdown, listas, emojis ni enlaces. Si hay mucho que decir, da lo esencial y pregunta si quiere más.)') : '';
     let request;
     if (engine === 'local') {
       let context = texts.map((t) => `[${T === TEXT.es ? 'Archivo' : 'File'}: ${t.name}]\n${t.text}`).join('\n\n');
@@ -644,12 +646,13 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
       }
       const history = s.messages.slice(-21).map(({ role, content }) => ({ role, content }));
       if (context) history[history.length - 1] = { ...history.at(-1), content: `${prompt}\n\n${context}` };
+      if (callNote) history[history.length - 1] = { ...history.at(-1), content: `${history.at(-1).content}\n\n${callNote}` };
       const nudge = { es: '(Responde solo en español, sin mezclar inglés.)', fr: '(Réponds uniquement en français.)', pt: '(Responda apenas em português.)', ru: '(Отвечай только по-русски.)' }[info.lang];
       if (nudge) history[history.length - 1] = { ...history.at(-1), content: `${history.at(-1).content}\n\n${nudge}` }; // a small model drifts into English: reminded every time
       request = { id, messages: [{ role: 'system', content: info.persona }, ...history], task: false, images: images.map((i) => i.path) };
     } else {
       request = {
-        id, messages: [{ role: 'user', content: prompt }], task: true, taskModel: engine, windowChat: true, web: state.web,
+        id, messages: [{ role: 'user', content: callNote ? `${prompt}\n\n${callNote}` : prompt }], task: true, taskModel: engine, windowChat: true, web: state.web,
         files: items.map((i) => i.path), session: { id: s.claude.id, started: s.claude.started },
       };
     }
@@ -996,11 +999,13 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
     state.voiceIdle = 0;
     els.voiceBtn.classList.toggle('is-on', on);
     els.voiceBtn.setAttribute('aria-pressed', String(on));
+    cw.voiceCall?.(on); // (her bubble on the desktop keeps out of the call)
     if (callEl) { callEl.hidden = !on; delete callEl.dataset.s; }
     if (on) { state.callT0 = performance.now(); loadClips(); }
     if (!on) { stopMonitor(); speaker.stop(); state.line = null; if (state.sending) cw.chatStop(state.sending.id); if (state.listening) state.listening.finish(); }
     else startMonitor().then(() => listen());
   }
+  window.addEventListener('beforeunload', () => { if (state.voiceMode) cw.voiceCall?.(false); });
   els.voiceBtn.addEventListener('click', () => {
     if (state.voiceMode && speaker.speaking) { speaker.stop(); state.line = null; listen(); return; } // (pressed while she talks: she shuts up and listens)
     setVoiceMode(!state.voiceMode);
