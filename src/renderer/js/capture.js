@@ -50,6 +50,24 @@ export class Capturer {
       await this.host.captureClipEnd('', false).catch(() => {});
       return { ok: false, error: err.message || 'denied' };
     }
+    // your voice too (clipMic): the microphone and the PC's sound are mixed into one track
+    let mixCtx = null;
+    let micStream = null;
+    if (cfg.clipMic === true) {
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true }, video: false });
+        mixCtx = new AudioContext();
+        const dest = mixCtx.createMediaStreamDestination();
+        mixCtx.createMediaStreamSource(micStream).connect(dest);
+        if (stream.getAudioTracks().length) mixCtx.createMediaStreamSource(new MediaStream(stream.getAudioTracks())).connect(dest);
+        stream = new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+      } catch {
+        micStream?.getTracks().forEach((t) => t.stop());
+        micStream = null;
+        mixCtx?.close().catch(() => {});
+        mixCtx = null; // (no microphone to take: the clip goes on without your voice)
+      }
+    }
     const mime = pickMime();
     const ext = /mp4/.test(mime) ? 'mp4' : 'webm';
     const file = await this.host.captureClipStart(ext).catch(() => null);
@@ -59,7 +77,7 @@ export class Capturer {
       return { ok: false, error: file?.error || 'file' };
     }
     const recorder = new MediaRecorder(stream, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: 6_000_000 });
-    const rec = { recorder, stream, id: file.id, path: file.path, began: performance.now(), writes: Promise.resolve(), bytes: 0, limit, timer: 0 };
+    const rec = { recorder, stream, id: file.id, path: file.path, mixCtx, micStream, began: performance.now(), writes: Promise.resolve(), bytes: 0, limit, timer: 0 };
     recorder.ondataavailable = (e) => {
       if (!e.data?.size) return;
       rec.bytes += e.data.size;
@@ -86,6 +104,8 @@ export class Capturer {
     this.rec = null;
     clearTimeout(rec.timer);
     rec.stream.getTracks().forEach((t) => t.stop());
+    rec.micStream?.getTracks().forEach((t) => t.stop());
+    rec.mixCtx?.close().catch(() => {});
     await rec.writes;
     const res = await this.host.captureClipEnd(rec.id, rec.bytes > 1000).catch(() => ({ ok: false }));
     this.onDone?.({ ...res, seconds: Math.round((performance.now() - rec.began) / 1000) });
