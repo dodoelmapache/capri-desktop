@@ -214,6 +214,14 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
 .scene.has-shot .shot { display: block; }
 .scene.has-shot > *:not(.tag):not(.h):not(.shot) { display: none; }
 
+/* claude from capri */
+.cl { position: absolute; left: 6cqw; right: 6cqw; top: 22cqw; display: grid; gap: 1.1cqw; font-size: 1.8cqw; }
+.cl .msg { max-width: 62%; }
+.brains { display: flex; flex-wrap: wrap; gap: .8cqw; margin-top: 1cqw; font-family: var(--font-mono); font-size: 1.4cqw; }
+.brains span { border: 1px solid var(--line); padding: .5cqw 1.1cqw; }
+.brains .pick { background: var(--red); color: var(--paper); border-color: var(--red); }
+.msg.work { color: var(--mute); }
+.msg.done { border-left-color: var(--green); color: var(--green); }
 /* conversation window */
 .cw { position: absolute; left: 6cqw; right: 6cqw; top: 22cqw; bottom: 6.5cqw; display: grid; grid-template-columns: 22cqw 1fr; border: 1px solid var(--line); background: var(--ink-2); clip-path: var(--cut); }
 .cw-list { border-right: 1px solid var(--line); display: grid; align-content: start; font-family: var(--font-mono); font-size: 1.5cqw; }
@@ -240,7 +248,7 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
 <div class="wrap">
   <header class="top">
     <h1>Capri <span>in motion</span></h1>
-    <div class="sub" id="status">76 s · plays on its own · space pauses</div>
+    <div class="sub" id="status">85 s · plays on its own · space pauses</div>
   </header>
 
   <div class="stage" id="stage" role="region" aria-label="Animated presentation of Capri, a desktop companion">
@@ -304,9 +312,27 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
       <div class="mute-note a-fade" data-a style="--at:1.4">sound on · voice off</div>
       <div class="card g reply a-pop" data-a style="--at:3.6;--for:.6"><small>Reply</small>Write it, she sends it.<div class="btns"><span class="pill">Cancel</span><span class="pill ok">Send</span></div></div>
     </section>
+    <!-- claude from capri -->
+    <section class="scene" data-d="9" data-t="0" data-media="scene10" data-cap="Big jobs go to Claude Code, from her chat. You pick the brain, she tells you when it is done.">
+      <div class="tag a-fade" data-a>05 · Claude, from her</div>
+      <h2 class="h wide a-rise" data-a style="--at:.2">Ask her for big jobs. <em>Claude does them.</em></h2>
+      <div class="cl a-fade" data-a style="--at:.8">
+        <div class="msg me a-rise" data-a style="--at:1.2">Sort my Downloads folder by file type.</div>
+        <div class="msg her a-rise" data-a style="--at:2.4">That needs tools, and only Claude Code has them. Send it?
+          <div class="brains">
+            <span class="a-pop" data-a style="--at:3.2">Haiku</span>
+            <span class="pick a-pop" data-a style="--at:3.5">Sonnet</span>
+            <span class="a-pop" data-a style="--at:3.8">Opus</span>
+            <span class="a-pop" data-a style="--at:4.1">No, leave it</span>
+          </div>
+        </div>
+        <div class="msg her work a-rise" data-a style="--at:5.2">Working on it… you can keep using your PC.</div>
+        <div class="msg her done a-rise" data-a style="--at:7">Claude is done. 42 files sorted, nothing deleted.</div>
+      </div>
+    </section>
     <!-- chat window -->
     <section class="scene" data-d="8" data-t="0" data-media="scene6" data-cap="Quick things stay in her bubble. Long sessions open in a real window.">
-      <div class="tag a-fade" data-a>05 · Her conversation window</div>
+      <div class="tag a-fade" data-a>06 · Her conversation window</div>
       <h2 class="h wide a-rise" data-a style="--at:.2">A bubble for quick things. <em>A window for long ones.</em></h2>
       <div class="cw a-fade" data-a style="--at:.8">
         <div class="cw-list">
@@ -325,7 +351,7 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
     </section>
     <!-- phone and pc -->
     <section class="scene" data-d="8" data-t="0" data-media="scene7" data-cap="Files between your PC and your phone over your own Wi-Fi. No cloud, no app.">
-      <div class="tag a-fade" data-a>06 · PC ⇄ phone</div>
+      <div class="tag a-fade" data-a>07 · PC ⇄ phone</div>
       <h2 class="h wide a-rise" data-a style="--at:.2">Scan once. <em>The file is on your phone.</em></h2>
       <div class="xfer">
         <div class="pc a-slide" data-a style="--at:.8;--for:.6">
@@ -349,7 +375,7 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
     </section>
     <!-- 6 -->
     <section class="scene" data-d="8" data-t="4.4" data-media="scene8" data-cap="One model in memory at a time. It leaves when you stop. A small one steps in for heavy apps.">
-      <div class="tag a-fade" data-a>07 · Light on your PC</div>
+      <div class="tag a-fade" data-a>08 · Light on your PC</div>
       <h2 class="h wide a-rise" data-a style="--at:.2">Big brain when you chat. <em>Gone when you don’t.</em></h2>
       <div class="events"><span class="e1">2 min idle</span><span class="e2">Illustrator opens</span></div>
       <div class="mem">
@@ -359,7 +385,7 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
     </section>
     <!-- 7 -->
     <section class="scene" data-d="7" data-t="0" data-media="scene9" data-cap="She asks before she touches anything, and she never deletes your files.">
-      <div class="tag a-fade" data-a>08 · Safe by default</div>
+      <div class="tag a-fade" data-a>09 · Safe by default</div>
       <h2 class="h a-rise" data-a style="--at:.2">She asks first. <em>Always.</em></h2>
       <div class="grid4">
         <div class="card a-rise" data-a style="--at:.8"><svg class="ic" viewBox="0 0 40 40"><rect x="4" y="9" width="32" height="22" fill="none" stroke="oklch(0.88 0.24 148)" stroke-width="2.4"/><path d="M10 20h8m6 0h6" stroke="oklch(0.88 0.24 148)" stroke-width="2.4"/></svg>Allow / Deny<p>Cards before anything changes.</p></div>
@@ -388,7 +414,7 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
       <button id="next" type="button" aria-label="Next scene">›</button>
       <button id="again" type="button">Replay</button>
       <span class="sp"></span>
-      <button id="full" type="button" aria-pressed="true">Full · 76 s</button>
+      <button id="full" type="button" aria-pressed="true">Full · 85 s</button>
       <button id="tease" type="button" aria-pressed="false">Teaser · 20 s</button>
     </div>
     <div class="dots" id="dots"></div>
