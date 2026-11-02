@@ -1,0 +1,24 @@
+{
+  "es": [
+    "Esta es Capri: una compañera de escritorio que escucha cuando la llamas.",
+    "Con un clic abres su tarjeta, con accesos a todo lo que hace.",
+    "Dile: Capri, pon música. Y pone tu playlist, sin abrir nada.",
+    "Dicta en cualquier programa: mantén las teclas, habla, suelta, y el texto aparece.",
+    "Su ventana grande guarda tus conversaciones. Tú eliges quién responde: su modelo local, gratis, o Claude.",
+    "Pasa archivos entre tu PC y tu celular escaneando un código. Sin nube y sin apps.",
+    "Pídele trabajos grandes a Claude, elige qué tan fuerte piensa, y te avisa cuando termina.",
+    "Todo corre en tu PC. Pregunta antes de tocar algo y no borra tus archivos.",
+    "Capri. Código abierto y tuya. Búscala en GitHub: capri-desktop."
+  ],
+  "en": [
+    "This is Capri: a desktop companion that listens when you call her.",
+    "One click opens her card, with shortcuts to everything she does.",
+    "Say: Capri, play music. And your playlist starts, without opening anything.",
+    "Dictate in any program: hold the keys, speak, let go, and the text appears.",
+    "Her big window keeps your conversations. You choose who answers: her free local model, or Claude.",
+    "Move files between your PC and your phone by scanning a code. No cloud, no app.",
+    "Ask Claude for big jobs, pick how hard it thinks, and she tells you when it is done.",
+    "It all runs on your PC. She asks before touching anything and never deletes your files.",
+    "Capri. Open source, and yours. Find her on GitHub: capri-desktop."
+  ]
+}
