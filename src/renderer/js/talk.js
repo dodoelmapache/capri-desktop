@@ -771,7 +771,7 @@ export class Listener {
   }
 
   note(message) {
-    if (!this.chat.open) return;
+    if (!this.chat.open) { this.panel.say({ kind: 'error', face: 'aside', line: message, compact: true, hold: 4000 }); return; } // (her chat is not open: a small card says it)
     this.panel.chatTurn({ quote: '', face: 'aside' });
     this.panel.stream(message, { done: true });
     this.panel.setChatBusy(false);
@@ -781,7 +781,8 @@ export class Listener {
     const t = this.t;
     this.speaker.stop(); // she doesn't talk over you, nor listen to herself
     // her chat opens (and she comes out of her biochip) while she is already listening: your first words do not wait for the animation
-    const opening = this.chat.open ? null : Promise.resolve(this.chat.start()).catch(() => {});
+    // her big chat stays shut while you talk: the listening pill is enough (voiceOpensChat: true brings the old way back); it opens only if what you said needs a conversation
+    const opening = this.chat.open || this.getCfg().voiceOpensChat !== true ? null : Promise.resolve(this.chat.start()).catch(() => {});
     if (this.chat.open && this.chat.turn) return; // she's still answering
     const status = await this.host.sttStatus();
     if (!status.ok) return this.note(t.nokey);
@@ -894,7 +895,7 @@ export class Listener {
       try { s.rec.stop(); } catch { resolve(); }
     });
     this.cool(); // (the mic stays warm a few seconds)
-    this.pill.set(null);
+    this.pill.set(this.chat.open ? null : 'thinking'); // (chat shut: the pill says it is transcribing)
     s.ctx.close().catch(() => {});
     const t = this.t;
     this.panel.chatInput.placeholder = this.chat.t.placeholder;
@@ -909,10 +910,16 @@ export class Listener {
         language: String(this.getCfg().sttLanguage || this.getCfg().lang || 'es').slice(0, 2),
         vocab: this.vocab(),
       });
-      if (!res.ok) return this.note(res.code === 'nokey' ? t.nokey : `${t.failed} ${res.error}`);
+      if (!res.ok) { this.pill.set(null); return this.note(res.code === 'nokey' ? t.nokey : `${t.failed} ${res.error}`); }
+      this.pill.set(null);
       const text = res.text.trim();
       if (!text || (GHOST.test(text) && text.length < 70)) return this.note(t.nothing);
       this.followUntil = Date.now() + FOLLOW_MS; // (hands free: you can go on without her name)
+      if (!this.chat.open) { // a plain order (open, play, pause...) is done with a small card; only a real conversation opens her chat
+        if (await this.chat.quickVoice?.(text).catch(() => false)) return undefined;
+        await this.chat.start();
+        if (!this.chat.open || this.chat.turn) return undefined;
+      }
       return this.chat.send(text, { voice: true }); // she answers out loud: you spoke to her
     } finally {
       this.panel.chatInput.placeholder = this.chat.t.placeholder;

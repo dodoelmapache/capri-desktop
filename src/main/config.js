@@ -128,6 +128,7 @@ const DEFAULTS = {
   clipCapri: 'ask',  // does Capri show in a screen clip? 'ask' (she asks each time; the hotkey leaves her out), 'show' or 'hide'
   clipMax: 120,      // seconds a clip lasts at most when you do not say how long (never more than 10 minutes)
   clipAudio: true,   // the clip carries the PC's sound
+  voiceOpensChat: false, // talking to her (Ctrl+Alt+V or her name) opens her big chat at once; false: only the listening pill, and the chat opens only for a real conversation
   clipMic: false,    // ...and, if true, your voice from the microphone too (her menu > Clips with my voice)
   mediaKeys: true,   // your keyboard's media keys (play/pause, next, previous) go to her player card instead of Windows' own pop-up, while she is out and no game has the screen
   gameProcs: 'leagueoflegends|league of legends|leagueclient|valorant|cs2|csgo|dota2|fortniteclient|overwatch|apex|rocketleague|eldenring|gta5', // programs that count as a game: with one in front she lets go of the media keys (Windows' own player takes them)
