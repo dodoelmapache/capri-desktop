@@ -901,13 +901,68 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
   const STOP_TALK = /^[\s¡]*(?:para|pará|calla|c[aá]llate|espera|basta|silencio|stop|wait|shut\s+up)[\s.!¡?¿,]*$/i;
   state.voiceMode = false;
   state.voiceIdle = 0;
+  state.level = 0;
+  const CALL_T = { es: { listening: 'ESCUCHANDO', thinking: 'PENSANDO', speaking: 'HABLANDO', idle: '' }, en: { listening: 'LISTENING', thinking: 'THINKING', speaking: 'SPEAKING', idle: '' } }[info.lang === 'en' ? 'en' : 'es'];
+  const callEl = $('call');
+  const callTick = () => { // the call screen: the orb follows your voice, the label says whose turn it is
+    if (!state.voiceMode || !callEl) return;
+    const mode = state.listening ? 'listening' : speaker.speaking ? 'speaking' : (state.sending || state.asking) ? 'thinking' : 'idle';
+    callEl.dataset.s = mode;
+    $('callState').textContent = CALL_T[mode];
+    $('callOrb').style.setProperty('--lvl', mode === 'listening' ? String(state.level) : '0');
+    if (mode === 'thinking' || mode === 'speaking') { const t = (state.sending?.text || '').trim(); $('callLine').textContent = t.length > 140 ? `…${t.slice(-140)}` : t; } else if (mode === 'listening') $('callLine').textContent = '';
+  };
+  // the microphone stays open (with echo cancelling) the whole call: it moves the orb, and a voice over hers (BARGE) makes her shut up and listen
+  const BARGE = 34;
+  async function startMonitor() {
+    if (state.mon) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+      const ctx = new AudioContext();
+      const an = ctx.createAnalyser();
+      an.fftSize = 1024;
+      ctx.createMediaStreamSource(stream).connect(an);
+      const samples = new Uint8Array(1024);
+      let hot = 0;
+      const timer = setInterval(() => {
+        an.getByteTimeDomainData(samples);
+        let peak = 0;
+        for (const v of samples) peak = Math.max(peak, Math.abs(v - 128));
+        state.level = Math.min(1, peak / 80);
+        callTick();
+        hot = speaker.speaking && peak > BARGE ? hot + 1 : 0;
+        if (hot >= 4) { hot = 0; barge(); }
+      }, 100);
+      state.mon = { stream, ctx, timer };
+    } catch { /* no microphone: the call still works without the orb moving and without interrupting by voice */ }
+  }
+  function stopMonitor() {
+    if (!state.mon) return;
+    clearInterval(state.mon.timer);
+    state.mon.stream.getTracks().forEach((t) => t.stop());
+    state.mon.ctx.close().catch(() => {});
+    state.mon = null;
+  }
+  function barge() { // you spoke over her: she stops (and what Claude was still writing is dropped) and listens at once
+    speaker.stop();
+    state.line = null;
+    if (state.sending) cw.chatStop(state.sending.id);
+    const go = () => {
+      if (!state.voiceMode) return;
+      if (state.sending || state.asking) { setTimeout(go, 120); return; }
+      if (!state.listening) listen();
+    };
+    go();
+  }
+  $('callEnd')?.addEventListener('click', () => setVoiceMode(false));
   function setVoiceMode(on) {
     state.voiceMode = on;
     state.voiceIdle = 0;
     els.voiceBtn.classList.toggle('is-on', on);
     els.voiceBtn.setAttribute('aria-pressed', String(on));
-    if (!on) { speaker.stop(); state.line = null; if (state.listening) state.listening.finish(); }
-    else listen();
+    if (callEl) callEl.hidden = !on;
+    if (!on) { stopMonitor(); speaker.stop(); state.line = null; if (state.sending) cw.chatStop(state.sending.id); if (state.listening) state.listening.finish(); }
+    else { startMonitor(); listen(); }
   }
   els.voiceBtn.addEventListener('click', () => {
     if (state.voiceMode && speaker.speaking) { speaker.stop(); state.line = null; listen(); return; } // (pressed while she talks: she shuts up and listens)
@@ -981,7 +1036,7 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
       for (const v of samples) peak = Math.max(peak, Math.abs(v - 128));
       const t = performance.now();
       if (peak > LISTEN.level) { s.heard = true; s.last = t; }
-      if (s.heard && t - s.last > LISTEN.silence) s.finish();
+      if (s.heard && t - s.last > (state.voiceMode ? LISTEN.voiceSilence : LISTEN.silence)) s.finish(); // (in a call she answers sooner)
       else if (!s.heard && t - s.began > LISTEN.nobody) s.finish();
       else if (t - s.began > LISTEN.max) s.finish();
     }, 100);
@@ -991,7 +1046,7 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
     rec.start(250);
     sfx('send');
   }
-  const LISTEN = { silence: 1000, nobody: 7000, max: 30000, level: 14 };
+  const LISTEN = { voiceSilence: 650, silence: 1000, nobody: 7000, max: 30000, level: 14 };
 
   // ---------- start ----------
   async function boot() {

@@ -215,3 +215,17 @@ html, body { margin: 0; height: 100%; background: var(--ink); color: var(--paper
 }
 .sw:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
 
+
+
+/* voice mode: a call screen, only the orb and what is going on */
+.call { position: fixed; inset: 0; z-index: 50; display: grid; place-content: center; justify-items: center; gap: 22px; background: radial-gradient(ellipse at 50% 40%, var(--ink-3), var(--ink) 70%); }
+.call[hidden] { display: none; }
+.call__orb { --lvl: 0; width: 170px; height: 170px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--paper-2), var(--violet) 55%, var(--ink-3)); box-shadow: 0 0 60px color-mix(in oklab, var(--violet) 70%, transparent); transform: scale(calc(1 + var(--lvl) * 0.35)); transition: transform 90ms linear, background 300ms; }
+.call[data-s='listening'] .call__orb { background: radial-gradient(circle at 35% 30%, var(--paper-2), var(--green) 55%, var(--ink-3)); box-shadow: 0 0 70px color-mix(in oklab, var(--green) 60%, transparent); }
+.call[data-s='thinking'] .call__orb { animation: callThink 1.2s ease-in-out infinite; }
+.call[data-s='speaking'] .call__orb { animation: callTalk 0.7s ease-in-out infinite; }
+@keyframes callThink { 50% { transform: scale(0.88); opacity: 0.7; } }
+@keyframes callTalk { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.14); } 70% { transform: scale(1.04); } }
+.call__state { font-family: var(--font-mono, monospace); letter-spacing: 0.22em; font-size: 13px; color: var(--paper-2); }
+.call__line { max-width: min(560px, 80vw); min-height: 3.2em; text-align: center; color: var(--paper-3); font-size: 15px; line-height: 1.4; }
+@media (prefers-reduced-motion: reduce) { .call__orb { animation: none !important; } }
