@@ -33,3 +33,7 @@ limpiar-inicio-admin.ps1
 deshacer-inicio-admin.ps1
 cpu.csv
 _android/
+
+# your own clips: add them on purpose
+docs/media/*.mp4
+docs/media/*.webm

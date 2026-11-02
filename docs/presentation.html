@@ -222,6 +222,15 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
 .brains .pick { background: var(--red); color: var(--paper); border-color: var(--red); }
 .msg.work { color: var(--mute); }
 .msg.done { border-left-color: var(--green); color: var(--green); }
+/* voice call */
+.vc { position: absolute; left: 6cqw; right: 6cqw; top: 22cqw; display: grid; grid-template-columns: 40cqw 1fr; gap: 3cqw; align-items: start; }
+.vc-mon { position: relative; aspect-ratio: 16 / 10; border: 1px solid var(--green); background: var(--ink-2); clip-path: var(--cut); background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.2) 0 1px, transparent 1px 3px); }
+.vc-pill { position: absolute; left: 1.4cqw; bottom: 1.2cqw; font-family: var(--font-mono); font-size: 1.3cqw; font-weight: 700; padding: .3cqw 1cqw; background: var(--green); color: var(--ink); }
+.vc-pill.p2 { left: 13cqw; background: var(--red); color: var(--paper); } .vc-pill.p3 { left: 24cqw; background: var(--violet); color: var(--paper); }
+.vc-rec { position: absolute; right: 1.4cqw; bottom: 1.2cqw; font-family: var(--font-mono); font-size: 1.2cqw; color: var(--red); }
+.vc-steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 1.2cqw; font-size: 1.9cqw; }
+.vc-steps li { border-left: .4cqw solid var(--red); padding: .6cqw 1.4cqw; background: var(--ink-2); }
+.vc-steps li.soft { color: var(--mute); border-left-color: var(--line); }
 /* conversation window */
 .cw { position: absolute; left: 6cqw; right: 6cqw; top: 22cqw; bottom: 6.5cqw; display: grid; grid-template-columns: 22cqw 1fr; border: 1px solid var(--line); background: var(--ink-2); clip-path: var(--cut); }
 .cw-list { border-right: 1px solid var(--line); display: grid; align-content: start; font-family: var(--font-mono); font-size: 1.5cqw; }
@@ -248,7 +257,7 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
 <div class="wrap">
   <header class="top">
     <h1>Capri <span>in motion</span></h1>
-    <div class="sub" id="status">85 s · plays on its own · space pauses</div>
+    <div class="sub" id="status">94 s · plays on its own · space pauses</div>
   </header>
 
   <div class="stage" id="stage" role="region" aria-label="Animated presentation of Capri, a desktop companion">
@@ -349,9 +358,28 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
         </div>
       </div>
     </section>
+    <!-- voice call -->
+    <section class="scene" data-d="9" data-t="0" data-media="scene11" data-cap="Voice mode: talk, she answers out loud while Claude writes, and you can cut in any time.">
+      <div class="tag a-fade" data-a>07 · Voice mode</div>
+      <h2 class="h wide a-rise" data-a style="--at:.2">Talk to her <em>like a call.</em></h2>
+      <div class="vc">
+        <div class="vc-mon a-fade" data-a style="--at:.8">
+          <span class="vc-pill p1 a-pop" data-a style="--at:1.2">LISTENING</span>
+          <span class="vc-pill p2 a-pop" data-a style="--at:3.4">WORKING</span>
+          <span class="vc-pill p3 a-pop" data-a style="--at:4.8">TALKING</span>
+          <span class="vc-rec">REC 00:08</span>
+        </div>
+        <ol class="vc-steps">
+          <li class="a-rise" data-a style="--at:1.4">You talk. She hears when you stop.</li>
+          <li class="a-rise" data-a style="--at:3.6">Claude writes. She speaks each sentence as it is finished.</li>
+          <li class="a-rise" data-a style="--at:5.2">Talk over her: she stops and listens.</li>
+          <li class="a-rise soft" data-a style="--at:6.6">"That is all" hangs up.</li>
+        </ol>
+      </div>
+    </section>
     <!-- phone and pc -->
     <section class="scene" data-d="8" data-t="0" data-media="scene7" data-cap="Files between your PC and your phone over your own Wi-Fi. No cloud, no app.">
-      <div class="tag a-fade" data-a>07 · PC ⇄ phone</div>
+      <div class="tag a-fade" data-a>08 · PC ⇄ phone</div>
       <h2 class="h wide a-rise" data-a style="--at:.2">Scan once. <em>The file is on your phone.</em></h2>
       <div class="xfer">
         <div class="pc a-slide" data-a style="--at:.8;--for:.6">
@@ -375,7 +403,7 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
     </section>
     <!-- 6 -->
     <section class="scene" data-d="8" data-t="4.4" data-media="scene8" data-cap="One model in memory at a time. It leaves when you stop. A small one steps in for heavy apps.">
-      <div class="tag a-fade" data-a>08 · Light on your PC</div>
+      <div class="tag a-fade" data-a>09 · Light on your PC</div>
       <h2 class="h wide a-rise" data-a style="--at:.2">Big brain when you chat. <em>Gone when you don’t.</em></h2>
       <div class="events"><span class="e1">2 min idle</span><span class="e2">Illustrator opens</span></div>
       <div class="mem">
@@ -385,7 +413,7 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
     </section>
     <!-- 7 -->
     <section class="scene" data-d="7" data-t="0" data-media="scene9" data-cap="She asks before she touches anything, and she never deletes your files.">
-      <div class="tag a-fade" data-a>09 · Safe by default</div>
+      <div class="tag a-fade" data-a>10 · Safe by default</div>
       <h2 class="h a-rise" data-a style="--at:.2">She asks first. <em>Always.</em></h2>
       <div class="grid4">
         <div class="card a-rise" data-a style="--at:.8"><svg class="ic" viewBox="0 0 40 40"><rect x="4" y="9" width="32" height="22" fill="none" stroke="oklch(0.88 0.24 148)" stroke-width="2.4"/><path d="M10 20h8m6 0h6" stroke="oklch(0.88 0.24 148)" stroke-width="2.4"/></svg>Allow / Deny<p>Cards before anything changes.</p></div>
@@ -414,7 +442,7 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
       <button id="next" type="button" aria-label="Next scene">›</button>
       <button id="again" type="button">Replay</button>
       <span class="sp"></span>
-      <button id="full" type="button" aria-pressed="true">Full · 85 s</button>
+      <button id="full" type="button" aria-pressed="true">Full · 94 s</button>
       <button id="tease" type="button" aria-pressed="false">Teaser · 20 s</button>
     </div>
     <div class="dots" id="dots"></div>
