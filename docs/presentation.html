@@ -213,12 +213,34 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
 .shot video, .shot img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .scene.has-shot .shot { display: block; }
 .scene.has-shot > *:not(.tag):not(.h):not(.shot) { display: none; }
+
+/* conversation window */
+.cw { position: absolute; left: 6cqw; right: 6cqw; top: 22cqw; bottom: 6.5cqw; display: grid; grid-template-columns: 22cqw 1fr; border: 1px solid var(--line); background: var(--ink-2); clip-path: var(--cut); }
+.cw-list { border-right: 1px solid var(--line); display: grid; align-content: start; font-family: var(--font-mono); font-size: 1.5cqw; }
+.cw-item { padding: 1.3cqw 1.6cqw; color: var(--mute); border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-item.on1 { color: var(--paper); background: oklch(0.3 0.08 15 / .5); box-shadow: inset .4cqw 0 var(--red); }
+.cw-main { padding: 1.6cqw 2cqw; display: grid; align-content: start; gap: 1cqw; font-size: 1.7cqw; overflow: hidden; }
+.msg { max-width: 70%; padding: .9cqw 1.4cqw; border: 1px solid var(--line); line-height: 1.35; }
+.msg.me { justify-self: end; background: oklch(0.27 0.06 292); }
+.msg.her { justify-self: start; border-left: .4cqw solid var(--red); }
+/* phone and pc */
+.xfer { position: absolute; left: 6cqw; right: 6cqw; top: 22cqw; display: grid; grid-template-columns: 26cqw 1fr 18cqw; align-items: center; gap: 2cqw; }
+.pc, .phone { border: 1px solid var(--line); background: var(--ink-2); padding: 1.4cqw 1.6cqw; min-height: 17cqw; clip-path: var(--cut); }
+.pc small, .phone small { font-family: var(--font-mono); font-size: 1.2cqw; color: var(--red); letter-spacing: .18em; text-transform: uppercase; display: block; margin-bottom: 1cqw; }
+.file { font-family: var(--font-mono); font-size: 1.5cqw; border: 1px solid var(--green); color: var(--green); padding: .6cqw 1cqw; display: inline-block; }
+.qr { margin-top: 1.2cqw; width: 8cqw; display: grid; grid-template-columns: repeat(5, 1fr); gap: .25cqw; background: var(--paper); padding: .6cqw; }
+.qr i { aspect-ratio: 1; background: var(--ink); } .qr i.d { background: var(--paper); }
+.beam { height: .5cqw; background: linear-gradient(90deg, var(--red), var(--green)); position: relative; }
+.beam span { position: absolute; top: -2.6cqw; left: 0; right: 0; text-align: center; font-family: var(--font-mono); font-size: 1.3cqw; color: var(--mute); }
+.phone .ok { margin-top: 1cqw; font-family: var(--font-mono); font-size: 1.4cqw; color: var(--ink); background: var(--green); display: inline-block; padding: .4cqw 1cqw; font-weight: 600; }
+.steps { position: absolute; left: 6cqw; right: 6cqw; top: 42cqw; display: flex; flex-wrap: wrap; gap: 1.2cqw; font-family: var(--font-mono); font-size: 1.5cqw; }
+.steps span { border: 1px solid var(--line); padding: .6cqw 1.2cqw; } .steps .soft { border-style: dashed; color: var(--mute); }
 </style>
 
 <div class="wrap">
   <header class="top">
     <h1>Capri <span>in motion</span></h1>
-    <div class="sub" id="status">60 s · plays on its own · space pauses</div>
+    <div class="sub" id="status">76 s · plays on its own · space pauses</div>
   </header>
 
   <div class="stage" id="stage" role="region" aria-label="Animated presentation of Capri, a desktop companion">
@@ -282,9 +304,52 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
       <div class="mute-note a-fade" data-a style="--at:1.4">sound on · voice off</div>
       <div class="card g reply a-pop" data-a style="--at:3.6;--for:.6"><small>Reply</small>Write it, she sends it.<div class="btns"><span class="pill">Cancel</span><span class="pill ok">Send</span></div></div>
     </section>
+    <!-- chat window -->
+    <section class="scene" data-d="8" data-t="0" data-media="scene6" data-cap="Quick things stay in her bubble. Long sessions open in a real window.">
+      <div class="tag a-fade" data-a>05 · Her conversation window</div>
+      <h2 class="h wide a-rise" data-a style="--at:.2">A bubble for quick things. <em>A window for long ones.</em></h2>
+      <div class="cw a-fade" data-a style="--at:.8">
+        <div class="cw-list">
+          <span class="cw-item on1">Fix the export script</span>
+          <span class="cw-item">Plan for Friday</span>
+          <span class="cw-item">Label draft, v3</span>
+          <span class="cw-item">Notes</span>
+        </div>
+        <div class="cw-main">
+          <div class="msg me a-rise" data-a style="--at:1.6">Can you summarize the thread on the label sizes?</div>
+          <div class="msg her a-rise" data-a style="--at:2.8">Three sizes agreed: 250 ml, 500 ml and 1 L. The 1 L still needs a client OK.</div>
+          <div class="msg me a-rise" data-a style="--at:4.4">Copy that into my notes.</div>
+          <div class="msg her a-rise" data-a style="--at:5.4">Done. Selected, scrolled, copied: it is a real window.</div>
+        </div>
+      </div>
+    </section>
+    <!-- phone and pc -->
+    <section class="scene" data-d="8" data-t="0" data-media="scene7" data-cap="Files between your PC and your phone over your own Wi-Fi. No cloud, no app.">
+      <div class="tag a-fade" data-a>06 · PC ⇄ phone</div>
+      <h2 class="h wide a-rise" data-a style="--at:.2">Scan once. <em>The file is on your phone.</em></h2>
+      <div class="xfer">
+        <div class="pc a-slide" data-a style="--at:.8;--for:.6">
+          <small>PC</small>
+          <div class="file">design-final.pdf</div>
+          <div class="qr" aria-hidden="true"><i></i><i></i><i></i><i class="d"></i><i></i><i class="d"></i><i></i><i></i><i class="d"></i><i></i><i class="d"></i><i></i><i class="d"></i><i></i><i></i><i></i><i class="d"></i><i></i><i></i><i class="d"></i><i></i><i></i><i class="d"></i><i></i><i></i></div>
+        </div>
+        <div class="beam a-grow" data-a style="--at:2.6;--for:1.4"><span>same Wi-Fi</span></div>
+        <div class="phone a-slide" data-a style="--at:1.4;--for:.6">
+          <small>Phone</small>
+          <div class="file got a-pop" data-a style="--at:4.2">design-final.pdf</div>
+          <div class="ok a-fade" data-a style="--at:4.4">Downloaded</div>
+        </div>
+      </div>
+      <div class="steps">
+        <span class="a-rise" data-a style="--at:1.2">1 · Ask her</span>
+        <span class="a-rise" data-a style="--at:2.2">2 · Scan the code</span>
+        <span class="a-rise" data-a style="--at:3.2">3 · Done</span>
+        <span class="a-rise soft" data-a style="--at:5">the other way too: pick files on the phone, they land in your Downloads</span>
+      </div>
+    </section>
     <!-- 6 -->
-    <section class="scene" data-d="8" data-t="4.4" data-media="scene6" data-cap="One model in memory at a time. It leaves when you stop. A small one steps in for heavy apps.">
-      <div class="tag a-fade" data-a>05 · Light on your PC</div>
+    <section class="scene" data-d="8" data-t="4.4" data-media="scene8" data-cap="One model in memory at a time. It leaves when you stop. A small one steps in for heavy apps.">
+      <div class="tag a-fade" data-a>07 · Light on your PC</div>
       <h2 class="h wide a-rise" data-a style="--at:.2">Big brain when you chat. <em>Gone when you don’t.</em></h2>
       <div class="events"><span class="e1">2 min idle</span><span class="e2">Illustrator opens</span></div>
       <div class="mem">
@@ -293,8 +358,8 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
       </div>
     </section>
     <!-- 7 -->
-    <section class="scene" data-d="7" data-t="0" data-media="scene7" data-cap="She asks before she touches anything, and she never deletes your files.">
-      <div class="tag a-fade" data-a>06 · Safe by default</div>
+    <section class="scene" data-d="7" data-t="0" data-media="scene9" data-cap="She asks before she touches anything, and she never deletes your files.">
+      <div class="tag a-fade" data-a>08 · Safe by default</div>
       <h2 class="h a-rise" data-a style="--at:.2">She asks first. <em>Always.</em></h2>
       <div class="grid4">
         <div class="card a-rise" data-a style="--at:.8"><svg class="ic" viewBox="0 0 40 40"><rect x="4" y="9" width="32" height="22" fill="none" stroke="oklch(0.88 0.24 148)" stroke-width="2.4"/><path d="M10 20h8m6 0h6" stroke="oklch(0.88 0.24 148)" stroke-width="2.4"/></svg>Allow / Deny<p>Cards before anything changes.</p></div>
@@ -323,7 +388,7 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
       <button id="next" type="button" aria-label="Next scene">›</button>
       <button id="again" type="button">Replay</button>
       <span class="sp"></span>
-      <button id="full" type="button" aria-pressed="true">Full · 60 s</button>
+      <button id="full" type="button" aria-pressed="true">Full · 76 s</button>
       <button id="tease" type="button" aria-pressed="false">Teaser · 20 s</button>
     </div>
     <div class="dots" id="dots"></div>
@@ -350,10 +415,13 @@ button[aria-pressed="true"] { background: var(--red); border-color: var(--red); 
   var raf = 0;
 
   function dur(sc) { return mode === 'tease' ? Number(sc.dataset.t) : Number(sc.dataset.d); }
+  function fullTotal() { return Math.round(all.reduce(function (a, s) { return a + Number(s.dataset.d); }, 0)); }
+  function teaseTotal() { return Math.round(all.reduce(function (a, s) { return a + Number(s.dataset.t); }, 0)); }
   function build() {
     list = all.filter(function (s) { return mode === 'full' || Number(s.dataset.t) > 0; });
     var total = list.reduce(function (a, s) { return a + dur(s); }, 0);
     stage.style.setProperty('--k', mode === 'tease' ? '0.55' : '1');
+    document.getElementById('full').textContent = 'Full · ' + fullTotal() + ' s'; document.getElementById('tease').textContent = 'Teaser · ' + teaseTotal() + ' s';
     statusEl.textContent = Math.round(total) + ' s · ' + (reduced ? 'use the arrows' : 'plays on its own · space pauses');
     dotsEl.textContent = '';
     list.forEach(function (s, i) {
