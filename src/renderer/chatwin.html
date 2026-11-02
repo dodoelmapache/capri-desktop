@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; media-src 'self' capri: blob:; connect-src 'self' capri:">
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: capri:; font-src 'self'; media-src 'self' capri: blob:; connect-src 'self' capri:">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Capri — Conversaciones</title>
   <link rel="stylesheet" href="styles/chatwin.css">
@@ -57,6 +57,13 @@
   </div>
   <script type="module" src="js/chatwin.js"></script>
   <div id="call" class="call" hidden>
+    <div class="call__mon" id="callMon" hidden>
+      <span class="call__tab">CAPRI // ONLINE</span>
+      <span class="call__scan"></span>
+      <span class="call__mark">カプリ</span>
+      <span class="call__pill" id="callPill">ONLINE</span>
+      <span class="call__rec" id="callRec">REC 00:00</span>
+    </div>
     <div class="call__orb" id="callOrb"></div>
     <div class="call__state" id="callState"></div>
     <div class="call__line" id="callLine"></div>

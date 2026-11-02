@@ -229,3 +229,16 @@ html, body { margin: 0; height: 100%; background: var(--ink); color: var(--paper
 .call__state { font-family: var(--font-mono, monospace); letter-spacing: 0.22em; font-size: 13px; color: var(--paper-2); }
 .call__line { max-width: min(560px, 80vw); min-height: 3.2em; text-align: center; color: var(--paper-3); font-size: 15px; line-height: 1.4; }
 @media (prefers-reduced-motion: reduce) { .call__orb { animation: none !important; } }
+
+/* the call screen shows her clips (your own folder) in the same framed monitor as on the desktop; no clips: the orb stays */
+.call__mon { position: relative; width: min(560px, 78vw); aspect-ratio: 16 / 10; border: 1px solid var(--green); background: #05030a; overflow: hidden; clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px)); box-shadow: 0 0 40px color-mix(in oklab, var(--green) 35%, transparent); }
+.call__mon[hidden] { display: none; }
+.call__mon video, .call__mon img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.call__scan { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 3px); pointer-events: none; }
+.call__tab, .call__pill, .call__rec, .call__mark { position: absolute; font-family: var(--font-mono, monospace); font-size: 11px; letter-spacing: 0.16em; color: var(--paper); text-shadow: 0 0 6px #000; }
+.call__tab { top: 8px; left: 12px; color: var(--green); }
+.call__mark { top: 8px; right: 12px; opacity: 0.8; }
+.call__pill { bottom: 8px; left: 12px; background: var(--green); color: var(--ink); padding: 2px 8px; text-shadow: none; font-weight: 700; }
+.call__rec { bottom: 8px; right: 12px; color: var(--red); }
+.call--clips .call__orb { display: none; }
+.call__line.is-note { color: var(--red); }

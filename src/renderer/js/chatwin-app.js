@@ -377,6 +377,7 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
   };
 
   function notice(text) {
+    if (state.voiceMode) state.callNote = { text, until: performance.now() + 6000 }; // (the call screen covers the thread: it shows the notice itself)
     els.thread.append(el('div', 'notice', text));
     if (state.stick) els.thread.scrollTop = els.thread.scrollHeight;
   }
@@ -907,11 +908,46 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
   const callTick = () => { // the call screen: the orb follows your voice, the label says whose turn it is
     if (!state.voiceMode || !callEl) return;
     const mode = state.listening ? 'listening' : speaker.speaking ? 'speaking' : (state.sending || state.asking) ? 'thinking' : 'idle';
-    callEl.dataset.s = mode;
+    if (callEl.dataset.s !== mode) { callEl.dataset.s = mode; showClip(mode); }
     $('callState').textContent = CALL_T[mode];
+    if (state.callNote && performance.now() < state.callNote.until) { $('callLine').textContent = state.callNote.text; $('callLine').classList.add('is-note'); return; }
+    $('callLine').classList.remove('is-note');
     $('callOrb').style.setProperty('--lvl', mode === 'listening' ? String(state.level) : '0');
     if (mode === 'thinking' || mode === 'speaking') { const t = (state.sending?.text || '').trim(); $('callLine').textContent = t.length > 140 ? `…${t.slice(-140)}` : t; } else if (mode === 'listening') $('callLine').textContent = '';
   };
+  // her clips in the call: listening = saludo, thinking = trabajando, speaking = voz (the first word of the file says which; idle ones fill in)
+  const CLIP_KIND = { listening: 'saludo', thinking: 'trabajando', speaking: 'voz', idle: 'idle' };
+  const CLIP_PILL = { listening: 'LISTENING', thinking: 'WORKING', speaking: 'TALKING', idle: 'ONLINE' };
+  const kindOfClip = (name) => String(name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\.[a-z0-9]+$/, '').split(/[-_. (]/)[0];
+  async function loadClips() {
+    if (state.clips) return;
+    state.clips = ((await cw.clipsList?.().catch(() => [])) || []).map((c) => ({ ...c, kind: kindOfClip(c.name) }));
+    callEl?.classList.toggle('call--clips', state.clips.length > 0);
+    $('callMon').hidden = !state.clips.length;
+    if (state.voiceMode) showClip(callEl?.dataset.s || 'idle');
+  }
+  function showClip(mode) {
+    $('callPill').textContent = CLIP_PILL[mode] || 'ONLINE';
+    const list = state.clips || [];
+    if (!list.length) return;
+    let pool = list.filter((c) => c.kind === CLIP_KIND[mode]);
+    if (!pool.length) pool = list.filter((c) => c.kind === 'idle');
+    if (!pool.length) pool = list;
+    const fresh = pool.filter((c) => c.name !== state.clipNow);
+    const clip = (fresh.length ? fresh : pool)[Math.floor(Math.random() * (fresh.length || pool.length))];
+    state.clipNow = clip.name;
+    const mon = $('callMon');
+    mon.querySelector('video,img')?.remove();
+    const video = /\.(webm|mp4)$/i.test(clip.name);
+    const media = document.createElement(video ? 'video' : 'img');
+    media.alt = '';
+    media.draggable = false;
+    if (video) Object.assign(media, { muted: true, autoplay: true, loop: true, playsInline: true });
+    media.src = clip.url;
+    mon.prepend(media);
+    if (video) media.play?.().catch(() => {});
+  }
+  setInterval(() => { if (state.voiceMode && state.callT0) { const sec = Math.floor((performance.now() - state.callT0) / 1000); $('callRec').textContent = `REC ${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`; } }, 500);
   // the microphone stays open (with echo cancelling) the whole call: it moves the orb, and a voice over hers (BARGE) makes her shut up and listen
   const BARGE = 34;
   async function startMonitor() {
@@ -960,9 +996,10 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
     state.voiceIdle = 0;
     els.voiceBtn.classList.toggle('is-on', on);
     els.voiceBtn.setAttribute('aria-pressed', String(on));
-    if (callEl) callEl.hidden = !on;
+    if (callEl) { callEl.hidden = !on; delete callEl.dataset.s; }
+    if (on) { state.callT0 = performance.now(); loadClips(); }
     if (!on) { stopMonitor(); speaker.stop(); state.line = null; if (state.sending) cw.chatStop(state.sending.id); if (state.listening) state.listening.finish(); }
-    else { startMonitor(); listen(); }
+    else startMonitor().then(() => listen());
   }
   els.voiceBtn.addEventListener('click', () => {
     if (state.voiceMode && speaker.speaking) { speaker.stop(); state.line = null; listen(); return; } // (pressed while she talks: she shuts up and listens)
@@ -970,24 +1007,33 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
   });
   // once she has finished talking (or there was nothing to say), listen again; a little wait so her own voice is not heard
   function voiceNext() {
-    if (!state.voiceMode) return;
+    if (!state.voiceMode || state.nextPending) return;
+    state.nextPending = true;
     const tick = () => {
-      if (!state.voiceMode) return;
-      if (speaker.speaking || state.sending || state.asking) { setTimeout(tick, 250); return; }
-      setTimeout(() => { if (state.voiceMode && !state.listening && !state.sending && !speaker.speaking) listen(); }, 450);
+      if (!state.voiceMode) { state.nextPending = false; return; }
+      if (speaker.speaking || state.sending || state.asking || state.starting) { setTimeout(tick, 250); return; }
+      setTimeout(() => { state.nextPending = false; if (state.voiceMode && !state.listening && !state.sending && !speaker.speaking) listen(); }, 450);
     };
     tick();
   }
 
   async function listen() {
     if (state.listening) { state.listening.finish(); return; }
+    if (state.starting) return;
+    state.starting = true;
+    try { await listenInner(); } finally { state.starting = false; }
+  }
+  async function listenInner() {
     if (state.sending || state.asking) return;
     const st = await cw.sttStatus().catch(() => null);
     if (!st?.ok) { notice(T.noStt); return; }
     let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
-    } catch { notice(T.noMic); return; }
+    let borrowed = false; // (in a call the microphone is already open: a second one makes the level jump and she never hears you stop)
+    if (state.voiceMode && state.mon?.stream?.active) { stream = state.mon.stream; borrowed = true; } else {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+      } catch { notice(T.noMic); return; }
+    }
     const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'].find((m) => MediaRecorder.isTypeSupported(m)) || '';
     const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
     const chunks = [];
@@ -997,7 +1043,7 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
     analyser.fftSize = 1024;
     ctx.createMediaStreamSource(stream).connect(analyser);
     const samples = new Uint8Array(analyser.fftSize);
-    const s = { began: performance.now(), heard: false, last: 0, done: false };
+    const s = { began: performance.now(), heard: false, last: 0, done: false, floor: 6 };
     s.finish = async () => {
       if (s.done) return;
       s.done = true;
@@ -1005,7 +1051,7 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
       state.listening = null;
       els.mic.classList.remove('btn--mic-on');
       await new Promise((resolve) => { rec.onstop = resolve; try { rec.stop(); } catch { resolve(); } });
-      stream.getTracks().forEach((t) => t.stop());
+      if (!borrowed) stream.getTracks().forEach((t) => t.stop());
       ctx.close().catch(() => {});
       const restore = () => { applyImageMode(); };
       try {
@@ -1015,9 +1061,9 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
         const wav = await blobToWav(blob).catch(() => null);
         state.names ||= (await cw.launchables().catch(() => [])).map((a) => a.name);
         const res = await cw.sttTranscribe({ audio: wav || await blob.arrayBuffer(), mime: wav ? 'audio/wav' : blob.type, language: String(info.lang || 'es').slice(0, 2), vocab: state.names });
-        if (!res?.ok) { notice(res?.code === 'nokey' ? T.noStt : T.failed(res?.error || '')); return; }
+        if (!res?.ok) { notice(res?.code === 'nokey' ? T.noStt : T.failed(res?.error || '')); if (state.voiceMode) setTimeout(voiceNext, 1500); return; }
         const heard = String(res.text || '').trim();
-        if (!heard || /^[\s\[\(♪*]*(?:aplausos?|m[uú]sica|risas?|silencio)[\s\]\)♪*.!]*$|amara\.org|subt[ií]tulos/i.test(heard)) { notice(T.heardNothing); return; }
+        if (!heard || /^[\s\[\(♪*]*(?:aplausos?|m[uú]sica|risas?|silencio)[\s\]\)♪*.!]*$|amara\.org|subt[ií]tulos/i.test(heard)) { if (state.voiceMode && ++state.voiceIdle >= 3) setVoiceMode(false); else voiceNext(); notice(T.heardNothing); return; }
         state.voiceIdle = 0;
         if (state.voiceMode && END_VOICE.test(heard)) { setVoiceMode(false); return; }
         if (state.voiceMode && STOP_TALK.test(heard)) { speaker.stop(); voiceNext(); return; }
@@ -1035,7 +1081,8 @@ export function createApp({ doc, cw, info, voice = null, now = () => Date.now() 
       let peak = 0;
       for (const v of samples) peak = Math.max(peak, Math.abs(v - 128));
       const t = performance.now();
-      if (peak > LISTEN.level) { s.heard = true; s.last = t; }
+      s.floor = peak < s.floor ? peak : s.floor + (peak - s.floor) * 0.015; // (the room's own noise, followed: speech is what rises clearly above it)
+      if (peak > Math.max(LISTEN.level, s.floor * 1.7 + 6)) { s.heard = true; s.last = t; }
       if (s.heard && t - s.last > (state.voiceMode ? LISTEN.voiceSilence : LISTEN.silence)) s.finish(); // (in a call she answers sooner)
       else if (!s.heard && t - s.began > LISTEN.nobody) s.finish();
       else if (t - s.began > LISTEN.max) s.finish();
