@@ -2,6 +2,22 @@
 // A slider shows `stored * scale` (a share as %, milliseconds as seconds) and keeps `shown / scale`.
 
 const SECTIONS = [
+  { title: 'Modelos de Claude', rows: [
+    { key: 'verSonnet', type: 'select', label: 'Versión de Sonnet', hint: 'Automática = la más reciente que conoce Claude Code.', options: [['', 'Automática (la más reciente)'], ['claude-sonnet-5-5', 'Sonnet 5.5'], ['claude-sonnet-4-5', 'Sonnet 4.5'], ['claude-sonnet-4-20250514', 'Sonnet 4']] },
+    { key: 'effSonnet', type: 'select', label: 'Esfuerzo de Sonnet', hint: 'Qué tanto piensa antes de responder. Más alto = mejor en lo difícil, pero más lento y gasta más de tu límite.', options: [['', 'Automático (el de Claude)'], ['low', 'Bajo (rápido)'], ['medium', 'Medio'], ['high', 'Alto'], ['xhigh', 'Muy alto'], ['max', 'Máximo (lento, gasta más)']] },
+    { key: 'verOpus', type: 'select', label: 'Versión de Opus', options: [['', 'Automática (la más reciente)'], ['claude-opus-5-5', 'Opus 5.5'], ['claude-opus-4-5', 'Opus 4.5'], ['claude-opus-4-1', 'Opus 4.1']] },
+    { key: 'effOpus', type: 'select', label: 'Esfuerzo de Opus', options: [['', 'Automático (el de Claude)'], ['low', 'Bajo (rápido)'], ['medium', 'Medio'], ['high', 'Alto'], ['xhigh', 'Muy alto'], ['max', 'Máximo (lento, gasta más)']] },
+    { key: 'verHaiku', type: 'select', label: 'Versión de Haiku', hint: 'Haiku no tiene niveles de esfuerzo.', options: [['', 'Automática (la más reciente)'], ['claude-haiku-5-5', 'Haiku 5.5'], ['claude-haiku-4-5', 'Haiku 4.5']] },
+    { key: 'claudeEffort', type: 'select', label: 'Esfuerzo general', hint: 'Se usa cuando Sonnet u Opus están en «Automático».', options: [['', 'Automático (el de Claude)'], ['low', 'Bajo (rápido)'], ['medium', 'Medio'], ['high', 'Alto'], ['xhigh', 'Muy alto'], ['max', 'Máximo (lento, gasta más)']] },
+  ] },
+  { title: 'Imágenes', rows: [
+    { key: 'imageVia', type: 'select', label: 'Cómo crea las imágenes', hint: 'Con tu Gemini (Plus) usa tu cuenta en una ventana de Chrome propia: sin API, algo más lenta. La primera vez te pide iniciar sesión. Editar una imagen siempre usa la API.', options: [['web', 'Con mi Gemini (Plus)'], ['api', 'Solo con la clave API']] },
+    { key: 'imageBrowser', type: 'select', label: 'Navegador para las imágenes', hint: 'Zen o Chrome, con un perfil propio de Capri (iniciar sesión en Gemini una sola vez).', options: [['auto', 'Automático (Zen si lo tienes)'], ['zen', 'Zen'], ['chrome', 'Chrome']] },
+    { key: 'imageWindow', type: 'select', label: 'Ventana de Chrome de las imágenes', hint: 'Visible: la ves en pantalla (para iniciar sesión o ver qué pasa). Oculta: sin ventana, solo cuando ya iniciaste sesión.', options: [['show', 'Visible'], ['hidden', 'Oculta']] },
+  ] },
+  { title: 'Cola de League of Legends', rows: [
+    { key: 'lolAutoAccept', type: 'toggle', label: 'Aceptar la partida automáticamente', hint: 'Cuando la cola encuentra partida, Capri pulsa «Aceptar» por ti. Solo ese botón: no elige campeón ni hace nada más. Necesita el cliente de League abierto.' },
+  ] },
   { title: 'Modo juego (League of Legends)', rows: [
     { key: 'lolMode', type: 'toggle', label: 'Comentarios en la partida', hint: 'Comenta kills, objetivos, compras y avisos. «Qué compro» funciona aunque esté apagado.' },
     { key: 'lolSpeak', type: 'toggle', label: 'Con voz', hint: 'Dice los comentarios en voz alta, con tu voz de siempre.' },

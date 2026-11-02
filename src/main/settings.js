@@ -11,11 +11,16 @@ const current = () => (win && !win.isDestroyed() ? win : null);
 
 // what the window may change: 'bool', [min, max, integer?] for a number, or a list of allowed words
 const SPEC = {
-  lolMode: 'bool', lolSpeak: 'bool', lolVolume: [0.1, 1], lolClips: 'bool', lolSfx: 'bool', lolShout: 'bool', lolSfxVol: [0.05, 1], lolGap: [10, 300, true],
+  lolMode: 'bool', lolAutoAccept: 'bool', lolAcceptDelay: [0, 5], lolSpeak: 'bool', lolVolume: [0.1, 1], lolClips: 'bool', lolSfx: 'bool', lolShout: 'bool', lolSfxVol: [0.05, 1], lolGap: [10, 300, true],
   heavyMode: 'bool', heavyFps: [0, 12, true], gameClickThrough: 'bool',
   cardAutoClose: [0, 30000, true],
   muted: 'bool', boomSay: 'bool', boomVol: [0.05, 1], volume: [0, 1], quietVolume: [0.1, 1], giggle: 'bool', giggleLevel: [0.1, 1],
   flirtVoiceOn: 'bool', flirtVoice: ['salome', 'dalia', 'elena', 'paloma', 'paola'], englishVoice: ['mine', 'english'],
+  verSonnet: ['', 'claude-sonnet-5-5', 'claude-sonnet-4-5', 'claude-sonnet-4-20250514'],
+  verOpus: ['', 'claude-opus-5-5', 'claude-opus-4-5', 'claude-opus-4-1'],
+  verHaiku: ['', 'claude-haiku-5-5', 'claude-haiku-4-5'],
+  effSonnet: ['', 'low', 'medium', 'high', 'xhigh', 'max'], effOpus: ['', 'low', 'medium', 'high', 'xhigh', 'max'], claudeEffort: ['', 'low', 'medium', 'high', 'xhigh', 'max'],
+  imageVia: ['web', 'api'], imageWindow: ['show', 'hidden'], imageBrowser: ['auto', 'zen', 'chrome'],
   dnd: 'bool',
 };
 

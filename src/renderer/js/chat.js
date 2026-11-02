@@ -254,6 +254,8 @@ const DIAG_ASK = /^\s*(?:capri[\s,]+)?(?:diagn[oó]stico|estado(?:\s+de\s+(?:cap
 // League game mode and light mode (lol.js, heavy.js)
 const LOL_ASK = /(?:(?:^|\s)(?:qu[eé]|cu[aá]l(?:es)?|dame|dime|recomi[eé]ndame|sugi[eé]reme|sugiere)(?=\s).*\b(?:build|items?|objetos?)\b|\b(?:build|items?|objetos?)\b.*\b(?:lol|league|partida|siguiente)\b|\b(?:lol|league|partida)\b.*\b(?:compro|comprar|build|items?|objetos?)\b)/i;
 const LOL_WEAK = /^\s*(?:capri[\s,]+)?(?:y\s+)?(?:qu[eé]\s+(?:compro|debo\s+comprar|me\s+conviene\s+comprar|compro\s+ahora)|qu[eé]\s+item\s+sigue|qu[eé]\s+me\s+recomiendas\s+comprar)[\s.!?¿¡]*$/i;
+const LOL_ACCEPT_ON = /^\s*(?:capri[\s,]+)?(?:por\s+favor[\s,]+)?(?:activa|pon|prende|enciende)\s+(?:la\s+)?(?:aceptaci[oó]n\s+autom[aá]tica|auto[\s-]?aceptar?)(?:\s+(?:de\s+)?(?:partidas?|colas?))?(?:\s+(?:de|del)\s+(?:lol|league(?:\s+of\s+legends)?))?[\s.!]*$/i;
+const LOL_ACCEPT_OFF = /^\s*(?:capri[\s,]+)?(?:por\s+favor[\s,]+)?(?:desactiva|quita|apaga)\s+(?:la\s+)?(?:aceptaci[oó]n\s+autom[aá]tica|auto[\s-]?aceptar?)(?:\s+(?:de\s+)?(?:partidas?|colas?))?(?:\s+(?:de|del)\s+(?:lol|league(?:\s+of\s+legends)?))?[\s.!]*$/i;
 const LOL_MODE_ON = /^\s*(?:capri[\s,]+)?(?:por\s+favor[\s,]+)?(?:activa|pon|prende|enciende)\s+(?:el\s+)?modo\s+juego[\s.!]*$/i;
 const LOL_MODE_OFF = /^\s*(?:capri[\s,]+)?(?:por\s+favor[\s,]+)?(?:desactiva|quita|apaga|sal\s+del)\s+(?:el\s+)?modo\s+juego[\s.!]*$/i;
 // Her list of ways to say an app: "cuando diga ilus abre Illustrator", "cuando diga yt me refiero a YouTube Music", "olvida el alias ilus", "qué alias tengo"
@@ -846,6 +848,8 @@ export class Chat {
     if (VOICE_BACK.test(text)) return { kind: 'voiceBack' };
     if (VOICE_LIST.test(text)) return { kind: 'voiceList' };
     if (BOOM_ASK.test(text)) return { kind: 'boom' };
+    if (LOL_ACCEPT_ON.test(text)) return { kind: 'lolAccept', on: true };
+    if (LOL_ACCEPT_OFF.test(text)) return { kind: 'lolAccept', on: false };
     if (LOL_MODE_ON.test(text)) return { kind: 'lolMode', on: true };
     if (LOL_MODE_OFF.test(text)) return { kind: 'lolMode', on: false };
     const hAdd = HEAVY_ADD.exec(text);
@@ -876,7 +880,7 @@ export class Chat {
       const it = await this.bareApp(text);
       if (it) q = { kind: 'open', text: it.name };
     }
-    if (!q || !['open', 'media', 'music', 'musicDefault', 'playlist', 'playlistList', 'playlistSave', 'player', 'shuffle', 'folder', 'file', 'close', 'closeExplorer', 'closeAll', 'dnd', 'color', 'diag', 'phoneSend', 'phoneReceive', 'lol', 'boom', 'voiceTry', 'voiceUse', 'voiceBack', 'voiceList', 'flirtVoice', 'englishVoice', 'settings', 'giggle', 'lolMode', 'heavyAdd', 'heavyRemove', 'heavyList', 'alias', 'whisperInstall', 'backup', 'modelInstall', 'offerAnswer'].includes(q.kind)) return null;
+    if (!q || !['open', 'media', 'music', 'musicDefault', 'playlist', 'playlistList', 'playlistSave', 'player', 'shuffle', 'folder', 'file', 'close', 'closeExplorer', 'closeAll', 'dnd', 'color', 'diag', 'phoneSend', 'phoneReceive', 'lol', 'boom', 'voiceTry', 'voiceUse', 'voiceBack', 'voiceList', 'flirtVoice', 'englishVoice', 'settings', 'giggle', 'lolMode', 'lolAccept', 'heavyAdd', 'heavyRemove', 'heavyList', 'alias', 'whisperInstall', 'backup', 'modelInstall', 'offerAnswer'].includes(q.kind)) return null;
     if (q.kind === 'open') {
       const parts = splitApps(q.text);
       let any = false;
@@ -1065,6 +1069,13 @@ export class Chat {
     const line = r?.none ? (es ? 'No veo ninguna partida de League en marcha: abre una y me cuentas.' : 'I see no League match running: start one and tell me.')
       : (es ? `No pude pensar la compra${r?.error ? ` (${r.error})` : ''}.` : `I could not work out what to buy${r?.error ? ` (${r.error})` : ''}.`);
     this.showOrder(text, line, 'aside', voice);
+  }
+
+  // "activa / desactiva la aceptación automática del LoL"
+  async runLolAccept(text, on) {
+    const es = this.brain.lang !== 'en';
+    this.host.setConfig({ lolAutoAccept: Boolean(on) });
+    this.replyOrder(text, { line: on ? (es ? 'Listo: vigilaré las colas de LoL y aceptaré cuando aparezca una partida. Tiene que estar abierto el cliente de League.' : 'Done: I will watch the LoL queue and accept when a match pops. The League client has to be open.') : (es ? 'Aceptación automática apagada: la partida la aceptas tú.' : 'Auto-accept off: you accept the match yourself.'), face: 'smug', command: true, minor: true }, false);
   }
 
   // "activa / desactiva el modo juego"
@@ -1489,6 +1500,7 @@ export class Chat {
       return;
     }
     if (q.kind === 'lol') { await this.runLol(text, voice); return; }
+    if (q.kind === 'lolAccept') { await this.runLolAccept(text, q.on); return; }
     if (q.kind === 'lolMode') { await this.runLolMode(text, q.on); return; }
     if (['heavyAdd', 'heavyRemove', 'heavyList'].includes(q.kind)) { await this.runHeavy(text, q, voice); return; }
     if (q.cap) { await this.handleCapture(text, q.cap, voice); return; }

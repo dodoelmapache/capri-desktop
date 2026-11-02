@@ -56,7 +56,8 @@ const autoQuiet = require('./autoquiet');
 const resume = require('./resume');
 const downloads = require('./downloads');
 const heavy = require('./heavy'); // light mode with games and heavy programs
-const lol = require('./lol'); // game mode for League of Legends
+const lol = require('./lol');
+const lolAccept = require('./lolaccept'); // game mode for League of Legends
 const settingsWin = require('./settings'); // her settings window
 const voices = require('./voices'); // her voice presets: try, keep, go back to the one she had
 const mediaKeysHook = require('./mediakeys');
@@ -84,6 +85,7 @@ let windowWatch = null;
 // the watcher only speaks when something changes: the overlay asks for this when it (re)loads
 let lastWindows = null;
 let gameInFront = false; // a game (or anything covering the whole screen) is in front: her media keys step aside
+let lolAcceptor = null; // presses ACCEPT on League's ready check (lolaccept.js)
 let lolFollow = null; // follows a League of Legends match (lol.js)
 let heavyNow = { active: false, apps: [], light: null }; // light mode with heavy programs (heavy.js)
 let chatModels = null; // the provider's models, as last seen (null: not reached)
@@ -259,12 +261,11 @@ function organizeRun() {
   return organizing;
 }
 
-// Ctrl+Alt+V: the microphone of her big window when that window is the one in front, else the one of her bubble
+// Ctrl+Alt+V: opens her card (the one a click on her shows, with its "Dime algo" bar ready to type in). She wakes up by her name now, so the key no longer listens.
+// Her big window has its own key (windowKey).
 let windowCall = false; // a voice call is going on in her big window: the bubble on the desktop stays out of it
 function listenKey() {
-  const win = chatwin.current?.();
-  if (win && !win.isDestroyed() && (win.isFocused() || windowCall)) win.webContents.send('chatwin:listen');
-  else sendCommand('listen');
+  sendCommand('chat');
 }
 
 let dictateWatch = null;
@@ -622,6 +623,7 @@ function rebuildTray() {
     { label: resolveLang(cfg.lang) === 'es' ? 'Grabar mi voz en los clips de pantalla' : 'Record my voice in screen clips', type: 'checkbox', checked: cfg.clipMic === true, click: (item) => updateConfig({ clipMic: item.checked }) },
     { label: resolveLang(cfg.lang) === 'es' ? 'Modo ligero con juegos y programas pesados' : 'Light mode with games and heavy programs', type: 'checkbox', checked: cfg.heavyMode !== false, click: (item) => updateConfig({ heavyMode: item.checked }) },
     { label: resolveLang(cfg.lang) === 'es' ? 'Programas pesados (marca o desmarca)' : 'Heavy programs (check or uncheck)', submenu: heavy.allOf(cfg).map((a) => ({ label: a.name, type: 'checkbox', checked: a.on, click: () => heavyEdit('toggle', a.name) })) },
+    { label: resolveLang(cfg.lang) === 'es' ? 'Aceptar partidas de League automáticamente' : 'Auto-accept League matches', type: 'checkbox', checked: cfg.lolAutoAccept === true, click: (item) => updateConfig({ lolAutoAccept: item.checked }) },
     { label: resolveLang(cfg.lang) === 'es' ? 'Modo juego de League of Legends' : 'League of Legends game mode', type: 'checkbox', checked: cfg.lolMode === true, click: (item) => updateConfig({ lolMode: item.checked }) },
     { label: resolveLang(cfg.lang) === 'es' ? 'Reproductor suelto (moverlo donde quiera)' : 'Loose player (move it anywhere)', type: 'checkbox', checked: Boolean(cfg.playerFloat), click: (item) => updateConfig({ playerFloat: item.checked }) },
     {
@@ -709,7 +711,7 @@ function rebuildTray() {
       label: resolveLang(cfg.lang) === 'es' ? 'Voz' : 'Voice',
       submenu: [
         {
-          label: resolveLang(cfg.lang) === 'es' ? 'Hablarle (Ctrl+Alt+V)' : 'Talk to her (Ctrl+Alt+V)',
+          label: resolveLang(cfg.lang) === 'es' ? 'Hablarle' : 'Talk to her',
           click: () => sendCommand('listen'),
         },
         {
@@ -999,6 +1001,7 @@ async function pickProvider(provider) {
 
 // What llm.js gets: the config with its keys opened (they're kept encrypted, setup.js)
 function llmConfig(cfg = config.load()) {
+  llm.setModelPrefs(cfg);
   return { ...cfg, apiKeys: setup.openKeys(cfg.apiKeys) };
 }
 
@@ -1347,7 +1350,7 @@ function registerIpc() {
       if (key) env.GEMINI_API_KEY = key;
     }
     const res = await imagegen.make({
-      prompt: String(prompt || '').slice(0, 1500), model, lang, env, refs: Array.isArray(refs) ? refs.map(String) : [], edit: source,
+      prompt: String(prompt || '').slice(0, 1500), model, lang, env, via: cfg.imageVia === 'api' ? 'api' : 'web', windowMode: cfg.imageWindow === 'hidden' ? 'hidden' : 'show', browser: cfg.imageBrowser || 'auto', refs: Array.isArray(refs) ? refs.map(String) : [], edit: source,
       script: cfg.nanoBananaPath || path.join(os.homedir(), 'Documents', 'nano-banana', 'nano_banana.py'),
       outDir: path.join(os.homedir(), 'Pictures', 'Capri'),
     });
@@ -1937,6 +1940,8 @@ function main() {
     autoQuiet.start({ getCfg: () => config.load(), game: () => gameInFront, recording: () => capture.recording(), onChange: (reason) => updateConfig({ dndAuto: reason }) });
     // a game or a heavy program has the PC: she steps aside (small model, nothing preloaded); a League match is followed through its own data
     lolFollow = lol.start({ getCfg: () => config.load(), lang: () => resolveLang(config.load().lang), onSay: (m) => sendCommand('gameSay', m) });
+    if (config.load().zenDebugPort !== false) { try { require('./geminiweb').fixZenShortcuts(shell); } catch { /* no shortcuts to fix */ } } // Zen opens with its control port, so the Zen MCP (and she) can reach it
+    lolAcceptor = lolAccept.start({ getCfg: () => config.load(), onAccepted: () => { const es = resolveLang(config.load().lang) === 'es'; sendCommand('gameSay', { line: es ? 'Partida aceptada. Tú tranquilo.' : 'Match accepted. You relax.', face: 'smug', soft: true }); } });
     heavy.onProcesses((running) => lolFollow.setPresent(running.some((n) => heavy.norm(n) === 'leagueoflegends')));
     heavy.start({
       getCfg: () => config.load(),

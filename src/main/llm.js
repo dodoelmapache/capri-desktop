@@ -147,8 +147,8 @@ function claudeChat(cfg, text, persona, onDelta, signal, port, extra = {}) {
     args.push('--permission-prompt-tool', 'mcp__capri__approve', '--mcp-config', quote(mcpFile));
   }
   // a chat bubble doesn't need all your MCP servers and skills booted on every message: that's most of the wait
-  if (/^[\w.\-\[\]]+$/.test(cfg.claudeChatModel || '')) args.push('--model', cfg.claudeChatModel);
-  args.push(...effortArgs(cfg.claudeEffort, cfg.claudeChatModel));
+  if (/^[\w.\-\[\]]+$/.test(cfg.claudeChatModel || '')) args.push('--model', modelId(cfg, cfg.claudeChatModel));
+  args.push(...effortFor(cfg, cfg.claudeChatModel));
   if (cfg.claudeLean !== false) args.push('--strict-mcp-config', '--disable-slash-commands');
   for (const dir of extra.dirs || []) args.push('--add-dir', quote(dir)); // the folders of what you attached
   const goChat = (continuing) => runClaude([...args, continuing ? '--resume' : '--session-id', claudeSession], {
@@ -164,6 +164,21 @@ function claudeChat(cfg, text, persona, onDelta, signal, port, extra = {}) {
 
 // How rigorously Claude works (its --effort: low, medium, high, xhigh, max). Only when you pick one in her menu (Rigor of Claude); without it,
 // Claude Code keeps its own. Haiku has no such levels, so it is left alone.
+// Which version of a family and how hard it thinks, per family (settings window: verSonnet / effSonnet ...). '' = Claude Code's own latest / the general rigor.
+const FAMILIES = ['haiku', 'sonnet', 'opus'];
+const familyOf = (m) => FAMILIES.find((f) => new RegExp(f, 'i').test(m || '')) || '';
+let prefs = {}; // last config seen (setModelPrefs), for the calls that get no cfg (selected text)
+const setModelPrefs = (cfg) => { prefs = cfg || {}; };
+const modelId = (cfg, m) => {
+  const fam = FAMILIES.includes(m) ? m : '';
+  const v = String((cfg || prefs)?.[`ver${fam.replace(/^./, (c) => c.toUpperCase())}`] || '');
+  return fam && /^claude-[\w.\-]+$/.test(v) ? v : m;
+};
+const effortFor = (cfg, m) => {
+  const fam = familyOf(m);
+  const own = fam && fam !== 'haiku' ? String((cfg || prefs)?.[`eff${fam.replace(/^./, (c) => c.toUpperCase())}`] || '') : '';
+  return effortArgs(own || (cfg || prefs)?.claudeEffort, m);
+};
 const effortArgs = (level, model) => (/^(low|medium|high|xhigh|max)$/.test(level || '') && !/haiku/i.test(model || '') ? ['--effort', level] : []);
 
 // One question to Claude, no tools, no MCP, no skills, in an empty folder: for text you selected on any page. What's inside <texto> is
@@ -172,7 +187,7 @@ const NO_TOOLS = 'Read,Glob,Grep,Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch
 function claudeOnce(model, instructions, text, signal) {
   const m = /^[\w.\-\[\]]+$/.test(model || '') ? model : 'haiku';
   const args = ['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'default', '--strict-mcp-config', '--disable-slash-commands',
-    '--disallowedTools', NO_TOOLS, '--model', m, '--session-id', randomUUID()];
+    '--disallowedTools', NO_TOOLS, '--model', modelId(null, m), ...effortFor(null, m), '--session-id', randomUUID()];
   return runClaude(args, {
     meta: { kind: 'selection', model: m },
     onSessionId: (id) => taskIds.add(id),
@@ -345,8 +360,8 @@ function claudeTask(cfg, text, onDelta, signal, port) {
     if (typeof dir === 'string' && dir && fs.existsSync(dir)) args.push('--add-dir', quote(dir));
   }
   if (cfg.researchJob || cfg.allowWeb) args.push('--allowedTools', 'WebSearch,WebFetch'); // only reads the web: no card for it
-  if (/^[\w.\-\[\]]+$/.test(cfg.claudeTaskModel || '')) args.push('--model', cfg.claudeTaskModel);
-  args.push(...effortArgs(cfg.claudeEffort, cfg.claudeTaskModel));
+  if (/^[\w.\-\[\]]+$/.test(cfg.claudeTaskModel || '')) args.push('--model', modelId(cfg, cfg.claudeTaskModel));
+  args.push(...effortFor(cfg, cfg.claudeTaskModel));
   const go = (continuing) => runClaude([...args, continuing ? '--resume' : '--session-id', sid], { meta: { kind: cfg.windowJob ? 'window' : cfg.researchJob ? 'search' : 'task', model: cfg.claudeTaskModel, sid }, onTouched: cfg.onTouched, onSessionId: (id) => taskIds.add(id), text, cwd: cfg.claudeCwd, env: process.env, onDelta, signal, onOutput: () => { if (own) cfg.onTaskStarted?.(); else taskStarted = true; } });
   return withSessionFlag(go, resume, (continuing) => {
     if (!own) taskStarted = continuing; // (the shared one keeps its own flag; a conversation's is saved by Capri's chat from claudeStarted)
@@ -502,7 +517,7 @@ async function describeImage(id, cfg, { model, file, png, lang, signal, mode = '
   const prompt = visionPrompt(cfg, lang, mode);
   if (p.kind === 'claude') {
     const m = cfg.claudeScanModel || 'haiku'; // a look at a picture doesn't need the big one
-    const modelArgs = /^[\w.\-\[\]]+$/.test(m) ? ['--model', m] : [];
+    const modelArgs = /^[\w.\-\[\]]+$/.test(m) ? ['--model', modelId(cfg, m)] : [];
     const env = { ...process.env, MAX_THINKING_TOKENS: '0' };
     const common = ['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'default', '--strict-mcp-config', '--disable-slash-commands', ...modelArgs];
     // 1) the picture goes in with the message: one step, the fast way
@@ -553,4 +568,4 @@ async function describeImage(id, cfg, { model, file, png, lang, signal, mode = '
   throw last;
 }
 
-module.exports = { setUsageSink, setLimitSink, once: claudeOnce, VISION_MODEL, ollamaStatus, scanTarget, describeImage, isLocal, PROVIDERS, CLAUDE_MODES, models, warm, chat, task: claudeTask, resetTask, isTaskSession, mcpList, resetClaude, isChatSession, claudeMemory, restoreClaude };
+module.exports = { setModelPrefs, setUsageSink, setLimitSink, once: claudeOnce, VISION_MODEL, ollamaStatus, scanTarget, describeImage, isLocal, PROVIDERS, CLAUDE_MODES, models, warm, chat, task: claudeTask, resetTask, isTaskSession, mcpList, resetClaude, isChatSession, claudeMemory, restoreClaude };

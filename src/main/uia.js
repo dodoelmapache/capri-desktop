@@ -122,11 +122,16 @@ try {
   if ($contact) {
     [System.Windows.Forms.SendKeys]::SendWait('^f') # (the search of chats)
     Start-Sleep -Milliseconds 700
+    [System.Windows.Forms.SendKeys]::SendWait('^a') # (whatever was left in the search goes away)
+    Start-Sleep -Milliseconds 150
     Set-Clipboard -Value $contact
     [System.Windows.Forms.SendKeys]::SendWait('^v')
-    Start-Sleep -Milliseconds 1400
-    [System.Windows.Forms.SendKeys]::SendWait('{ENTER}') # (the first result opens its chat, with the box ready)
-    Start-Sleep -Milliseconds 1200
+    Start-Sleep -Milliseconds 1800 # (the results need a moment to show)
+    # Enter alone leaves the name sitting in the search box: Down goes into the results (the first chat), Enter opens it and puts the cursor in its message box
+    [System.Windows.Forms.SendKeys]::SendWait('{DOWN}')
+    Start-Sleep -Milliseconds 400
+    [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+    Start-Sleep -Milliseconds 1800
   }
   Set-Clipboard -Value $env:CAPRI_TEXT
   [System.Windows.Forms.SendKeys]::SendWait('^v')

@@ -56,6 +56,12 @@ const DEFAULTS = {
   claudeChatModel: 'sonnet', // model for her Claude Code chat ('opus', 'sonnet' or 'haiku', the fastest; '' = Claude Code's own default)
   modelSet: '',      // marks that her chat model was moved to Sonnet once (app.js)
   claudeTaskModel: 'sonnet', // model for tasks you hand Claude Code by voice ("dile a Claude que…")
+  zenDebugPort: true, // her adds --remote-debugging-port 9223 to your Zen shortcuts so the Zen MCP and her can drive it (geminiweb.js). false: leaves them alone
+  imageBrowser: 'auto', // the browser for Gemini images: 'auto' (Zen if installed, else Chrome), 'zen' or 'chrome'
+  imageWindow: 'show', // her Chrome for Gemini images: 'show' = its window is on screen (you can watch and sign in), 'hidden' = no window once you are signed in
+  imageVia: 'web',  // her pictures: 'web' = through your Gemini (Plus) in a Chrome of her own, API only if that fails or to edit a picture; 'api' = only the API key
+  verSonnet: '', verOpus: '', verHaiku: '', // which version of each Claude ('' = the latest one Claude Code knows; or an id like 'claude-sonnet-4-5'): settings window > Modelos de Claude
+  effSonnet: '', effOpus: '',               // how hard each one thinks ('' = the general rigor below; 'low' ... 'max')
   claudeEffort: '',  // how rigorously Claude works: '' (Claude Code's own), 'low', 'medium', 'high', 'xhigh' or 'max' (not Haiku)
   claudeLean: true,  // her chat starts Claude Code without your MCP servers or skills (much quicker); false: with everything
   claudeMode: 'default', // Claude Code's permission mode in her chat: 'default' only reads, 'acceptEdits' edits without asking
@@ -152,6 +158,8 @@ const DEFAULTS = {
   heavyGames: [],    // the ones of that list you called "juego pesado": with them open her drawing is cut down too
   gameClickThrough: true, // with a game in front her window lets every click through (right-click is how you move in LoL); her settings window has the switch
   heavyFps: 4,       // frames a second she is drawn at with a game in front (usually 12): about the cost of nothing; 0 = no cut
+  lolAutoAccept: false, // presses ACCEPT for you when a League match is found (lolaccept.js). Off until you say "activa la aceptación automática"
+  lolAcceptDelay: 1,    // seconds she waits before pressing it (0-5)
   lolMode: true,     // League of Legends game mode, on by itself when a match starts: she comments now and then, with voice and GIFs (lol.js). "Desactiva el modo juego" mutes her remarks; "qué compro" works either way
 
   lolSpeak: true,    // ...and with her voice (the game's automatic quiet does not mute it; do-not-disturb does). false: only the bubble

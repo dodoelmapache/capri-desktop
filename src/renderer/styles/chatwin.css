@@ -242,3 +242,19 @@ html, body { margin: 0; height: 100%; background: var(--ink); color: var(--paper
 .call__rec { bottom: 8px; right: 12px; color: var(--red); }
 .call--clips .call__orb { display: none; }
 .call__line.is-note { color: var(--red); }
+
+/* voice mode, compact: a small floating card above the composer (bottom-left) instead of a full screen, so the thread stays visible and you can see what she heard */
+.call { inset: auto auto 92px 28px; width: 300px; max-width: calc(100vw - 56px); gap: 10px; padding: 12px; place-content: start center; background: color-mix(in oklab, var(--ink-3) 94%, transparent); border: 1px solid color-mix(in oklab, var(--green) 55%, transparent); box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55), 0 0 22px color-mix(in oklab, var(--green) 18%, transparent); clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px)); }
+.call__mon { width: 100%; }
+.call__orb { width: 84px; height: 84px; }
+.call__state { font-size: 11px; }
+.call__line { max-width: 100%; min-height: 0; font-size: 12.5px; line-height: 1.35; max-height: 4.2em; overflow: hidden; }
+.call__line:empty { display: none; }
+.call .btn--stop { padding: 6px 14px; font-size: 12px; }
+
+/* fix: the compact card was a grid that shrank the monitor to its text; a plain column gives it the full width */
+.call { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+.call[hidden] { display: none; }
+.call__mon { width: 100%; flex: none; min-height: 150px; }
+.call__tab, .call__pill, .call__rec, .call__mark { font-size: 10px; letter-spacing: 0.1em; }
+.call__orb { flex: none; }
