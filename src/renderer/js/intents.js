@@ -169,9 +169,9 @@ const APP_ALIAS = [
 const aliased = (text) => APP_ALIAS.reduce((t, [re, to]) => t.replace(re, to), String(text || ''));
 const APP_RE = '(whatsapp|discord|telegram)';
 const HAS_APP = /\b(whatsapp|discord|telegram)\b/;
-const HAS_MSG = /\b(?:mensajes?|chats?|conversacion(?:es)?|dms?|notificaciones?)\b/;
+const HAS_MSG = /\b(?:mensajes?|messages?|texts?|chats?|conversacion(?:es)?|dms?|notificaciones?)\b/;
 const NOT_MSG = /\b(?:archivos?|correos?|mails?|emails?|pdf|carpetas?|documentos?|imagenes?|fotos?|videos?|canciones?|musica)\b/;
-const READ_VERB = /\b(?:lee|leeme|leer|lea|leelos|leelas|revisa|revisame|revisalos|mira|miralos|checa|checame|chequea|chequeame|muestra|muestrame|ensename|dime|cuentame|dictame|echale\s+un\s+ojo)\b/;
+const READ_VERB = /\b(?:lee|leeme|leer|lea|leelos|leelas|revisa|revisame|revisalos|mira|miralos|checa|checame|chequea|chequeame|muestra|muestrame|ensename|dime|cuentame|dictame|read|show|check|tell|echale\s+un\s+ojo)\b/;
 const READ_Q = [
   /\bque\s+(?:me\s+)?(?:escribieron|escribio|dijeron|dijo|mandaron|mando|dicen|dice|hay|paso|llego)\b/,
   /\b(?:quien|quienes)\s+me\s+(?:escribio|escribieron|hablo|hablaron|mando|mandaron|dijo|dijeron|busco|buscaron)\b/,
@@ -180,10 +180,11 @@ const READ_Q = [
   /\bmensajes?\s+(?:nuevos?|pendientes?|sin\s+leer)\b/,
   /\bme\s+(?:escribieron|escribio|llegaron|llego)\s+(?:algo|mensajes?)\b/,
 ];
-const TO = String.raw`(?:\s+(?:a|para)\s+([^:,]{1,40}?)\s*[:,])?`;
-const REPLY_A = new RegExp(String.raw`^\s*(?:capri[\s,]+)?(?:por favor[\s,]+)?(?:responde|contesta|respondele|contestale|escribe|escribele|manda|mandale|envia|enviale|dile|avisale|mensajea|mensajeale)\w*\s+(?:un\s+mensaje\s+)?(?:en|por|a|via|con|al)\s+${APP_RE}${TO}\s*[:,\-]?\s*(?:que\s+)?(.{2,})$`, 'id');
-const REPLY_B = new RegExp(String.raw`^\s*(?:capri[\s,]+)?(?:por favor[\s,]+)?(?:(?:respondele|contestale|avisale)(?=[\s:,\-])${TO}\s*[:,\-]?|(?:responde|contesta)\s*[:,])\s*(?:que\s+)?(.{2,})$`, 'id');
-const REPLY_EMPTY = new RegExp(String.raw`^\s*(?:capri[\s,]+)?(?:por favor[\s,]+)?(?:responde|contesta|respondele|contestale)(?:\s+(?:en|por|a)\s+${APP_RE})?\s*[.!]*$`, 'i');
+const TO = String.raw`(?:\s+(?:a|para|to|for)\s+([^:,]{1,40}?)\s*[:,])?`;
+const REPLY_A = new RegExp(String.raw`^\s*(?:capri[\s,]+)?(?:por favor[\s,]+)?(?:responde|contesta|respondele|contestale|escribe|escribele|manda|mandale|envia|enviale|dile|avisale|mensajea|mensajeale|reply|respond|answer|text|message|msg|dm|write|send|tell)\w*\s+(?:un\s+mensaje\s+|a\s+message\s+)?(?:en|por|a|via|con|al|in|on|through|to|by)\s+${APP_RE}${TO}\s*[:,\-]?\s*(?:que\s+)?(.{2,})$`, 'id');
+const REPLY_B = new RegExp(String.raw`^\s*(?:capri[\s,]+)?(?:por favor[\s,]+)?(?:(?:respondele|contestale|avisale|reply|respond|answer)(?=[\s:,\-])${TO}\s*[:,\-]?|(?:responde|contesta|reply|respond|answer)\s*[:,])\s*(?:que\s+)?(.{2,})$`, 'id');
+const REPLY_C = new RegExp(String.raw`^\s*(?:capri[\s,]+)?(?:please[\s,]+)?(?:reply|respond|answer|text|message|msg|dm|tell)\w*\s+(?:to\s+)?([^:,]{1,40}?)\s+(?:on|in|via|through)\s+${APP_RE}\s*[:,\-]\s*(?:that\s+)?(.{2,})$`, 'id');
+const REPLY_EMPTY = new RegExp(String.raw`^\s*(?:capri[\s,]+)?(?:por favor[\s,]+)?(?:responde|contesta|respondele|contestale|reply|respond|answer)(?:\s+(?:en|por|a|in|on|to)\s+${APP_RE})?\s*[.!]*$`, 'i');
 export function msgAsk(raw) {
   const text = aliased(raw);
   const pl = plain(text); // (same length as the text: the letters only lose their accents)
@@ -193,10 +194,12 @@ export function msgAsk(raw) {
   const grab = (m, n) => (m.indices?.[n] ? String(text).slice(m.indices[n][0], m.indices[n][1]).trim() : '');
   const a = REPLY_A.exec(pl);
   if (a) return { kind: 'reply', app: a[1].toLowerCase(), to: grab(a, 2), text: tail(a) };
-  const b = REPLY_B.exec(pl);
-  if (b) return { kind: 'reply', app: '', to: grab(b, 1), text: tail(b) };
+  const c = REPLY_C.exec(pl); // "reply to Mom on WhatsApp: on my way"
+  if (c) return { kind: 'reply', app: c[2].toLowerCase(), to: grab(c, 1), text: tail(c) };
   const e = REPLY_EMPTY.exec(pl);
   if (e) return { kind: 'reply', app: (e[1] || '').toLowerCase(), to: '', text: '' };
+  const b = REPLY_B.exec(pl);
+  if (b) return { kind: 'reply', app: '', to: grab(b, 1), text: tail(b) };
   if (t.split(/\s+/).length > 14 || NOT_MSG.test(t)) return null;
   const app = HAS_APP.exec(t)?.[1] || '';
   const read = (READ_VERB.test(t) && (HAS_MSG.test(t) || app))
