@@ -2370,9 +2370,9 @@ export class Chat {
   pendingInChat(text, voice, app = '') {
     const es = this.brain.lang !== 'en';
     const list = pending.list().filter((p) => !app || p.app === app);
-    if (!list.length) return this.replyLocal(text, { line: es ? 'No tienes chats pendientes por responder.' : 'No chats are waiting for an answer.', face: 'smug' }, voice);
+    if (!list.length) return this.replyLocal(text, { minor: true, msg: true, line: es ? 'No tienes chats pendientes por responder.' : 'No chats are waiting for an answer.', face: 'smug' }, voice);
     const d = pendingText(list, es);
-    this.replyLocal(text, { line: `${d.head}\n${d.body}`, face: 'smug' }, voice);
+    this.replyLocal(text, { minor: true, msg: true, line: `${d.head}\n${d.body}`, face: 'smug' }, voice);
     this.panel.setActions(pendingButtons(list, es), (id) => pendingAct(id, list, { es, chat: this, panel: this.panel, inChat: true }));
     return undefined;
   }
@@ -2382,6 +2382,7 @@ export class Chat {
   async msgFlow(text, q, voiceAsked) {
     const es = this.brain.lang !== 'en';
     const cfgM = (await this.host.getConfig?.().catch(() => null)) || {};
+    this.msgSilent = cfgM.msgVoice !== true; // (replyLocal: what these chats say is not read out, whatever the voice mode)
     const voice = cfgM.msgVoice === true ? voiceAsked : false; // (about messages she does not read aloud what they say, unless msgVoice: true)
     const names = { whatsapp: 'WhatsApp', discord: 'Discord', telegram: 'Telegram' };
     const hist = (await this.host.msgHistory?.(q.app || '').catch(() => [])) || [];
@@ -2395,24 +2396,24 @@ export class Chat {
         const clock = (t) => new Date(t).toLocaleTimeString(es ? 'es-CO' : 'en-GB', { hour: '2-digit', minute: '2-digit' });
         const clip = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
         const body = mine.map((m) => `• ${clock(m.t)} ${q.app ? '' : `[${names[m.app] || m.app}] `}${clip(m.title, 40)}${m.body ? `: ${clip(m.body, 160)}` : ''}`).join('\n');
-        return this.replyLocal(text, { line: `${es ? `Lo último que me llegó de ${label}:` : `The latest I got from ${label}:`}\n${body}`, face: 'smug' }, voice);
+        return this.replyLocal(text, { minor: true, msg: true, line: `${es ? `Lo último que me llegó de ${label}:` : `The latest I got from ${label}:`}\n${body}`, face: 'smug' }, voice);
       }
       if (app && app !== 'whatsapp') { // (an app whose window does show its text)
         const r = await this.host.msgRead?.(app).catch(() => null);
         if (this.turn || !this.open) return;
         const rows = r?.ok ? r.lines.filter((l) => l.length > 1).slice(-8) : [];
-        if (rows.length) return this.replyLocal(text, { line: `${es ? `Esto dice ${label} ahora:` : `${label} says right now:`}\n${rows.map((l) => `• ${l.length > 160 ? `${l.slice(0, 157)}…` : l}`).join('\n')}`, face: 'smug' }, voice);
+        if (rows.length) return this.replyLocal(text, { minor: true, msg: true, line: `${es ? `Esto dice ${label} ahora:` : `${label} says right now:`}\n${rows.map((l) => `• ${l.length > 160 ? `${l.slice(0, 157)}…` : l}`).join('\n')}`, face: 'smug' }, voice);
       }
-      return this.replyLocal(text, { line: es ? `No me ha llegado nada de ${label} desde que estoy despierta. Leo lo que las apps mandan a las notificaciones de Windows, así que si no sale banner ni aviso en el centro de notificaciones, no lo veo.` : `Nothing has come in from ${label} since I woke up. I read what apps send to Windows notifications, so if no banner or notification-center entry appears, I do not see it.`, face: 'aside' }, voice);
+      return this.replyLocal(text, { minor: true, msg: true, line: es ? `No me ha llegado nada de ${label} desde que estoy despierta. Leo lo que las apps mandan a las notificaciones de Windows, así que si no sale banner ni aviso en el centro de notificaciones, no lo veo.` : `Nothing has come in from ${label} since I woke up. I read what apps send to Windows notifications, so if no banner or notification-center entry appears, I do not see it.`, face: 'aside' }, voice);
     }
     // reply: nothing leaves until you press a button on her card
     const label = names[app] || '';
-    if (!app) return this.replyLocal(text, { line: es ? '¿En cuál? Dime WhatsApp, Discord o Telegram.' : 'Which one? WhatsApp, Discord or Telegram.', face: 'aside' }, voice);
+    if (!app) return this.replyLocal(text, { minor: true, msg: true, line: es ? '¿En cuál? Dime WhatsApp, Discord o Telegram.' : 'Which one? WhatsApp, Discord or Telegram.', face: 'aside' }, voice);
     const msg = String(q.text || '').trim();
-    if (!msg) return this.replyLocal(text, { line: es ? `¿Qué le respondo en ${label}? Dime, por ejemplo: «responde en ${label}: ya voy».` : `What shall I answer in ${label}? Say, for example: "reply in ${label}: on my way".`, face: 'aside' }, voice);
+    if (!msg) return this.replyLocal(text, { minor: true, msg: true, line: es ? `¿Qué le respondo en ${label}? Dime, por ejemplo: «responde en ${label}: ya voy».` : `What shall I answer in ${label}? Say, for example: "reply in ${label}: on my way".`, face: 'aside' }, voice);
     const last = [...hist].reverse().find((m) => m.app === app);
     const contact = String(q.to || last?.title || '').trim();
-    if (app === 'whatsapp' && !contact) return this.replyLocal(text, { line: es ? 'No sé a quién. Dime «responde en WhatsApp a Mamá: …» o espera a que te llegue algo y respóndele.' : 'I do not know who to. Say "reply in WhatsApp to Mom: …" or wait for something to come in.', face: 'aside' }, voice);
+    if (app === 'whatsapp' && !contact) return this.replyLocal(text, { minor: true, msg: true, line: es ? 'No sé a quién. Dime «responde en WhatsApp a Mamá: …» o espera a que te llegue algo y respóndele.' : 'I do not know who to. Say "reply in WhatsApp to Mom: …" or wait for something to come in.', face: 'aside' }, voice);
     this.lastMsgApp = app;
     const who = contact ? (es ? `a «${contact}»` : `to "${contact}"`) : (es ? 'en la conversación que tengas abierta' : 'in the chat you have open');
     const doSend = async (send) => {
@@ -2426,7 +2427,7 @@ export class Chat {
     };
     // you wrote (or said) the message and who it is for: it goes at once. msgConfirm: true brings the "¿La envío?" card back
     if (cfgM.msgConfirm !== true) { this.panel.say({ kind: 'work', badge: es ? 'MENSAJE' : 'MESSAGE', line: es ? `Enviando a ${contact || label}…` : `Sending to ${contact || label}…`, hold: 15000, compact: true }); return doSend(true); }
-    this.replyLocal(text, { line: es ? `Voy a escribirle ${who} en ${label}:\n«${msg}»\n¿La envío?` : `I’ll write ${who} in ${label}:\n“${msg}”\nSend it?`, face: 'smug' }, voice);
+    this.replyLocal(text, { minor: true, msg: true, line: es ? `Voy a escribirle ${who} en ${label}:\n«${msg}»\n¿La envío?` : `I’ll write ${who} in ${label}:\n“${msg}”\nSend it?`, face: 'smug' }, voice);
     this.panel.setActions([
       { id: 'send', label: es ? 'Enviar' : 'Send', primary: true },
       { id: 'type', label: es ? 'Solo escribirlo' : 'Just type it' },
@@ -2607,7 +2608,7 @@ export class Chat {
     this.panel.setFace(face || 'smug');
     if (face === 'laugh') this.panel.onLaugh?.(); // (her little giggle, when she laughs at an answer)
     this.panel.setChatBusy(false);
-    if (this.speaker?.wants(voice, !local.minor)) this.speaker.say(line, this.brain.lang, { flirt: Boolean(local.flirt) }); // (notes, timers, deadlines, summaries: what matters; an app that opens: not)
+    if (!(local.msg && this.msgSilent) && this.speaker?.wants(voice, !local.minor)) this.speaker.say(line, this.brain.lang, { flirt: Boolean(local.flirt) }); // (notes, timers, deadlines, summaries: what matters; an app that opens: not)
     // something scheduled for an app she can't find: she says so, and drops it
     local.check?.then((ok) => {
       if (ok) return;
