@@ -25,8 +25,8 @@ function folders(config) {
     { keys: ['imagenes', 'fotos', 'pictures'], label: 'Imágenes', dir: pics },
     { keys: ['videos', 'video'], label: 'Videos', dir: vids },
     { keys: ['musica', 'music'], label: 'Música', dir: app.getPath('music') },
-    { keys: ['capturas', 'capturas de pantalla'], label: 'Capturas', dir: cfg.captureDir || path.join(pics, 'Capri', 'Capturas') },
-    { keys: ['clips'], label: 'Clips', dir: cfg.clipDir || path.join(vids, 'Capri', 'Clips') },
+    { keys: ['capturas', 'capturas de pantalla'], label: 'Capturas', dir: require('./config').mediaDirs(cfg).shots },
+    { keys: ['clips'], label: 'Clips', dir: require('./config').mediaDirs(cfg).clips },
     { keys: ['organizacion claude'], label: 'Organización Claude', dir: [path.join(desk, 'Organización Claude'), path.join(desk, 'Organizacion Claude')].find((d) => fs.existsSync(d)) || path.join(desk, 'Organización Claude') },
     { keys: ['capri'], label: 'Capri', dir: path.join(docs, 'Capri') },
   ];

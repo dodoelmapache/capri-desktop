@@ -1115,8 +1115,7 @@ function registerIpc() {
   };
   ipcMain.handle('phone:send', async (_e, { what, query } = {}) => {
     const c = config.load();
-    const shots = c.captureDir || path.join(app.getPath('pictures'), 'Capri', 'Capturas');
-    const clips = c.clipDir || path.join(app.getPath('videos'), 'Capri', 'Clips');
+    const { shots, clips } = config.mediaDirs(c);
     if (what === 'pick') { // she asks which files: Windows' own window, any number
       const parent = overlay && !overlay.isDestroyed() ? overlay : undefined;
       const picked = await dialog.showOpenDialog(parent, { title: 'Elige qué mandar al celular', properties: ['openFile', 'multiSelections'] });

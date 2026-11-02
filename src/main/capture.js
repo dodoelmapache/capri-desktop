@@ -1,7 +1,7 @@
 'use strict';
 
 // Screenshots and screen clips, on request ("haz una captura de pantalla", "graba la pantalla por 30 segundos").
-//  - shot: the screen she is on, as a PNG in Pictures\Capri\Capturas
+//  - shot: the screen she is on, as a PNG in Pictures\Capri\Capturas (or your "Organización Claude\capturas de pantalla" folder, config.mediaDirs)
 //  - clip: the overlay (renderer) records the screen with MediaRecorder and hands the pieces here, which writes them to Videos\Capri\Clips
 // She herself is left out of both: her window is excluded from the capture while it runs (setContentProtection), so what you record is your screen, not her.
 
@@ -50,8 +50,8 @@ let saver = null; // set by setup: (png Buffer) => { ok, path, copied }, for the
 let recordingNow = () => false; // (set once her screen clips exist: is one being recorded?)
 
 function setup({ ipcMain, getOverlay, getDisplay, files, config }) {
-  const shotDir = () => config.load().captureDir || path.join(app.getPath('pictures'), 'Capri', 'Capturas');
-  const clipDir = () => config.load().clipDir || path.join(app.getPath('videos'), 'Capri', 'Clips');
+  const shotDir = () => config.mediaDirs().shots;
+  const clipDir = () => config.mediaDirs().clips;
   const clips = new Map(); // id -> { fd, path }
   recordingNow = () => clips.size > 0;
   let hidden = 0;          // how many captures are asking her to stay out of the picture

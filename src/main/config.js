@@ -197,4 +197,16 @@ function save(patch) {
   return cache;
 }
 
-module.exports = { load, save, file, DEFAULTS };
+// Where her screenshots and screen clips go: what you set (captureDir / clipDir), else, if your Desktop has an "Organización Claude" folder with
+// "capturas de pantalla" / "video" inside, there; else Pictures\\Capri\\Capturas and Videos\\Capri\\Clips.
+function mediaDirs(cfg = load()) {
+  const desk = app.getPath('desktop');
+  const root = ['Organización Claude', 'Organizacion Claude'].map((n) => path.join(desk, n)).find((d) => fs.existsSync(d));
+  const sub = (names) => root && names.map((n) => path.join(root, n)).find((d) => fs.existsSync(d));
+  return {
+    shots: cfg.captureDir || sub(['capturas de pantalla', 'Capturas de pantalla']) || path.join(app.getPath('pictures'), 'Capri', 'Capturas'),
+    clips: cfg.clipDir || sub(['video', 'Video', 'videos']) || path.join(app.getPath('videos'), 'Capri', 'Clips'),
+  };
+}
+
+module.exports = { load, save, file, DEFAULTS, mediaDirs };
