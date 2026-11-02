@@ -738,6 +738,7 @@ export class Listener {
       // she has just been talking with you: no need to say her name again, what you say next is for her
       // (only an order for the PC counts there: a sound, a video playing nearby or someone talking is not for her, and never becomes a conversation)
       if (this.followUntil && Date.now() < this.followUntil && text.length >= 3 && await Promise.resolve(this.chat.systemOrder?.(text)).catch(() => null)) {
+        this.comeOut();
         this.followUntil = Date.now() + FOLLOW_MS;
         this.cue(null);
         this.voice.play('tick');
@@ -755,8 +756,16 @@ export class Listener {
     this.woke(text.slice(m[0].length).replace(/^[\s,.:;!¡?¿-]+/, '').trim());
   }
 
+  // called by her name or her key while she is folded in her biochip: she comes out (the chat used to do it when it opened; it stays shut now)
+  async comeOut() {
+    if (!this.capri.stowed) return;
+    this.host.setConfig?.({ visible: true });
+    await this.capri.unstow().catch(() => {});
+  }
+
   // she heard her name, with something after it or without
   async woke(command) {
+    this.comeOut();
     this.voice.play('tick');
     this.capri.wake();
     this.capri.pulse();
@@ -779,6 +788,7 @@ export class Listener {
 
   async begin() {
     const t = this.t;
+    this.comeOut();
     this.speaker.stop(); // she doesn't talk over you, nor listen to herself
     // her chat opens (and she comes out of her biochip) while she is already listening: your first words do not wait for the animation
     // her big chat stays shut while you talk: the listening pill is enough (voiceOpensChat: true brings the old way back); it opens only if what you said needs a conversation
