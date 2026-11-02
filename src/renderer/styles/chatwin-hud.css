@@ -1,0 +1,133 @@
+/* The HUD look in her conversation window (the same one as hud.css gives her cards), opt-in: everything lives under html[data-look='hud'],
+   and her menu (Aspecto / Look > Clásico) takes it away without a restart. Quiet on purpose: nothing sits behind the words you read.
+   - a HUD rule under the headers (bright red stretch, dim one, ticks at the end)
+   - a faint red haze at the top of the conversation, contour lines at the foot of the list
+   - rulers of tiny ticks along the two side edges, hatched stripes in the bottom corner
+   - viewfinder corners on the box you write in, a red notch on buttons and on the conversation you are in
+   - her answers cross a scan line once when they arrive; quotes get the red bar */
+
+html[data-look='hud'] {
+  --hud-red: var(--red);
+  --hud-red-dim: color-mix(in oklab, var(--red) 38%, transparent);
+}
+
+/* ---- the rule under the headers ---- */
+html[data-look='hud'] .side__head,
+html[data-look='hud'] .top {
+  position: relative;
+}
+
+html[data-look='hud'] .top {
+  border-bottom-color: transparent;
+}
+
+html[data-look='hud'] .side__head::after,
+html[data-look='hud'] .top::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 0;
+  height: 2px;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, var(--hud-red) 0 30%, transparent 30%) 0 0 / 100% 2px no-repeat,
+    linear-gradient(90deg, var(--hud-red-dim) 0 100%) 0 1px / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, var(--hud-red) 0 1px, transparent 1px 4px) 100% 0 / 34px 2px no-repeat;
+}
+
+html[data-look='hud'] .top::after {
+  left: 22px;
+  right: 22px;
+}
+
+/* ---- haze, contours ---- */
+html[data-look='hud'] .main {
+  background: radial-gradient(90% 38% at 50% -12%, color-mix(in oklab, var(--red) 13%, transparent), transparent 70%);
+}
+
+html[data-look='hud'] .side {
+  position: relative;
+  background:
+    repeating-radial-gradient(circle at -6% 108%, transparent 0 18px, rgba(255, 255, 255, 0.03) 18px 19px),
+    var(--ink-2);
+}
+
+/* ---- rulers on the two side edges, and the stripes in the corner ---- */
+html[data-look='hud'] .side::after,
+html[data-look='hud'] .main::after {
+  content: '';
+  position: absolute;
+  top: 80px;
+  bottom: 80px;
+  width: 4px;
+  pointer-events: none;
+  background: repeating-linear-gradient(180deg, var(--hud-red-dim) 0 1px, transparent 1px 5px);
+  -webkit-mask: linear-gradient(180deg, transparent, #000 15%, #000 85%, transparent);
+  mask: linear-gradient(180deg, transparent, #000 15%, #000 85%, transparent);
+}
+
+html[data-look='hud'] .side::after { left: 4px; }
+html[data-look='hud'] .main::after { right: 5px; }
+
+html[data-look='hud'] .main::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 56px;
+  height: 7px;
+  pointer-events: none;
+  z-index: 2;
+  background: repeating-linear-gradient(135deg, var(--hud-red) 0 3px, transparent 3px 6px);
+  opacity: 0.72;
+}
+
+/* ---- the conversation list: a red notch on the one you are in ---- */
+html[data-look='hud'] .item.is-active::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  bottom: 4px;
+  width: 22px;
+  height: 4px;
+  pointer-events: none;
+  background: repeating-linear-gradient(135deg, var(--hud-red) 0 2px, transparent 2px 4px);
+  opacity: 0.8;
+}
+
+/* ---- what you write ---- */
+html[data-look='hud'] .composer__input {
+  background-image:
+    linear-gradient(var(--hud-red), var(--hud-red)), linear-gradient(var(--hud-red), var(--hud-red)),
+    linear-gradient(var(--hud-red), var(--hud-red)), linear-gradient(var(--hud-red), var(--hud-red));
+  background-size: 9px 1px, 1px 9px, 9px 1px, 1px 9px;
+  background-position: right top, right top, left bottom, left bottom;
+  background-repeat: no-repeat;
+}
+
+html[data-look='hud'] .btn:not(.btn--primary):not(.btn--stop):hover,
+html[data-look='hud'] .seg button:not(.is-on):hover {
+  box-shadow: inset 2px 0 0 var(--hud-red);
+}
+
+/* ---- her answers ---- */
+html[data-look='hud'] .msg--capri .msg__body blockquote {
+  border-left-color: var(--hud-red);
+}
+
+html[data-look='hud'] .msg--capri.is-new .msg__body {
+  background-image: linear-gradient(180deg, transparent, color-mix(in oklab, var(--red) 70%, transparent) 50%, transparent);
+  background-size: 100% 6px;
+  background-repeat: no-repeat;
+  animation: hud-scan-msg 520ms steps(8, end) 1 both;
+}
+
+@keyframes hud-scan-msg {
+  from { background-position: 0 -12%; }
+  to { background-position: 0 112%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-look='hud'] .msg--capri.is-new .msg__body { animation: none; background-image: none; }
+}

@@ -6,9 +6,11 @@
 // ("peek"), and falling ("fall") when the window under her goes away or you drop her.
 
 import { SpriteRenderer, SPRITE } from './sprite.js';
+import { SpriteBody } from './spritebody.js';
 import { ACTS, NEUTRAL, Player } from './acting.js';
 import { sleep, rand, pick, clamp, lerp, ease, tween, reducedMotion, today } from './util.js';
 
+const SEATED_ACTS = ['sit', 'stand', 'sleep', 'plop', 'land', 'talk', 'curious', 'look', 'gaze', 'split', 'flinch', 'turn']; // the acts that need no arms or effects: sitting on a ledge they all run on her drawn body (clicking her, talking, glancing around)
 const ON_TWOS = 1000 / 12;
 const ON_ONES = 1000 / 24;
 const ASLEEP = 1000 / 6;
@@ -28,6 +30,16 @@ export class Capri {
     this.root = root;
     this.canvas = canvas;
     this.sprite = new SpriteRenderer(canvas, image);
+    this.body = new SpriteBody(root, canvas); // the drawn sprite-sheet body (spritebody.js), over the shader's canvas
+    this.sprites = true;      // config.sprites: false = only the shader body, as before
+    this.onBody = false;      // which one is showing right now
+    this.walking = false;
+    this.talking = false;     // set by the speaker: her mouth moves
+    this.dancing = false;
+    this.body.load('../../assets/sprites');
+    this.followWindow = true; // config.followWindow
+    this.fgSeen = 0; this.fgSince = 0; this.fgTried = 0;
+    this.isTalking = null;    // () => bool, set by app.js
     this.fx = fx;
     this.voice = voice;
 
@@ -46,6 +58,7 @@ export class Capri {
     this.dormant = false; // asleep, down to her mask
     this.wander = true;
     this.possessWindows = true; // tray: "Possess my windows"
+    this.restSide = 'left'; // her corner: 'left' (by her biochip) or 'right'
     this.restOn = 'corner'; // where she rests when nothing's going on: her corner, or 'taskbar' (her menu)
     this.nextHome = 0;
     this.dragging = false;
@@ -81,6 +94,7 @@ export class Capri {
     this.onMove = null;     // her head moved on screen
     this.onTeleport = null; // ('start' | 'end')
     this.onClick = null;
+    this.pressed = false; // the left button is down on her
     this.onMenu = null;   // right-click on her
     this.onGaze = null;
     this.onMode = null;   // (mode, previous)
@@ -120,6 +134,7 @@ export class Capri {
   setScale(scale) {
     this.scale = scale;
     this.sprite.resize(scale);
+    this.body.resize(scale);
     this.pivot();
     this.place();
   }
@@ -131,6 +146,7 @@ export class Capri {
     const fx = (SPRITE.pad + SPRITE.feet.x) * s;
     const fy = (SPRITE.pad + (this.stance === 'sit' ? SPRITE.hip : SPRITE.feet.y)) * s;
     this.canvas.style.transformOrigin = `${fx}px ${fy}px`;
+    this.body.canvas.style.transformOrigin = `${fx}px ${fy}px`;
   }
 
   setView(w, h, floor = h) {
@@ -152,7 +168,9 @@ export class Capri {
     const top = this.pos.y - (SPRITE.pad + SPRITE.feet.y) * s + this.bob;
     const turn = (this.upside ? 180 : 0) + this.tilt;
     this.root.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
-    this.canvas.style.transform = `rotate(${turn.toFixed(2)}deg) scale(${(this.facing * this.sx).toFixed(3)}, ${this.sy.toFixed(3)})`;
+    const tf = `rotate(${turn.toFixed(2)}deg) scale(${(this.facing * this.sx).toFixed(3)}, ${this.sy.toFixed(3)})`;
+    this.canvas.style.transform = tf;
+    this.body.canvas.style.transform = tf;
     this.onMove?.(this.head());
   }
 
@@ -170,7 +188,8 @@ export class Capri {
   }
 
   // Is this screen point on her body? Uses the cut-out's alpha so empty space stays click-through.
-  hit(x, y) {
+  // reach: how many sprite pixels around the pointer count (a few more than her thin edges: the window is already solid when the pointer arrives)
+  hit(x, y, reach = 7) {
     if (this.hidden || this.p.alpha < 0.5) return false;
     if (this.perch?.id === 'taskbar' && y > this.view.floor) return false; // the taskbar under her legs stays clickable
     const s = this.scale;
@@ -186,7 +205,8 @@ export class Capri {
       const c = lerp(1, 0.3, this.p.sit);
       sy = sy <= SPRITE.hip + THIGH * c ? SPRITE.hip + (sy - SPRITE.hip) / c : sy + THIGH * (1 - c);
     }
-    for (const [dx, dy] of [[0, 0], [4, 0], [-4, 0], [0, 4], [0, -4]]) {
+    if (this.onBody) return this.body.hit(sx, SPRITE.feet.y - (fy - y) / s, reach);
+    for (const [dx, dy] of [[0, 0], [reach, 0], [-reach, 0], [0, reach], [0, -reach]]) {
       const px = Math.round(sx + dx), py = Math.round(sy + dy);
       if (px < 0 || py < 0 || px >= SPRITE.width || py >= SPRITE.height) continue;
       if (this.alphaMap[(py * SPRITE.width + px) * 4 + 3] > 40) return true;
@@ -285,16 +305,41 @@ export class Capri {
     return id === 'taskbar' ? this.ledge() : this.windows.wins.find((w) => w.id === id);
   }
 
+  // A game is open (heavy.js): she rests in the bottom left corner by her biochip, not on the taskbar or on the windows, and she does not wander.
+  setGameMode(on) {
+    this.gameMode = Boolean(on);
+    if (this.stowed || this.stowing || this.hidden) return;
+    setTimeout(() => { if (!this.busy && !this.dragging) this.goHome(); }, 600);
+  }
+
   // Back to where she rests: her corner, or sitting on the taskbar below it.
   goHome() {
+    if (this.gameMode) {
+      const chip = this.spot('chip');
+      return Math.hypot(chip.x - this.pos.x, chip.y - this.pos.y) > 60 || this.stance !== 'stand' ? this.teleport(chip) : Promise.resolve();
+    }
+    if (this.restOn === 'window') {
+      // sitting on the window in front; none she can sit on (maximized, or nothing open): the taskbar, as below
+      const seat = this.pickSeat({ frontOnly: true });
+      if (seat) {
+        if (this.stance === 'sit' && this.perch?.id === seat.win.id) return Promise.resolve();
+        return this.sitOn(seat);
+      }
+    }
     const post = this.spot('post');
-    if (this.restOn !== 'taskbar') return this.teleport(post);
+    // her corner: sitting on the taskbar's edge, left (by her biochip) or right (the seated pose, like on a window), not standing in the air
+    if (this.restOn === 'corner') {
+      const dx = this.restSide === 'right' ? post.x : this.spot('chip').x;
+      if (this.stance === 'sit' && this.perch?.id === 'taskbar' && Math.abs(this.perch.dx - dx) < 40) return Promise.resolve();
+      return this.sitOn({ win: this.ledge(), dx });
+    }
     if (this.stance === 'sit' && this.perch?.id === 'taskbar') return Promise.resolve();
     // left of the clock and the tray icons, right of the middle (the app icons, on Windows 11)
     return this.sitOn({ win: this.ledge(), dx: clamp(this.view.w - 440, this.view.w * 0.6, post.x) });
   }
 
   pickSeat({ frontOnly = false, except = null } = {}) {
+    if (this.gameMode) return null; // (a game is open: she sits on nothing)
     const options = [];
     for (const win of this.windows.wins) {
       if (win.id === except || !this.canSit(win)) continue;
@@ -310,6 +355,8 @@ export class Capri {
   // ---------- frame loop ----------
 
   interval() {
+    // a game is open: a few frames a second (config heavyFps) while she is only standing there; the moment she does something (a stow, a gesture, a call) she is drawn as usual, or those sequences take far too long
+    if (this.gameLite && !this.busy && !this.act && !this.stowing && this.stance !== 'fall') return this.gameLite;
     if (this.busy || this.stance === 'fall' || this.act?.player.act.fps === 24) return ON_ONES;
     return this.mode === 'sleep' ? ASLEEP : ON_TWOS;
   }
@@ -318,6 +365,7 @@ export class Capri {
     requestAnimationFrame(this.loop);
     if (this.hidden) return;
     if (now - this.lastDraw < this.interval() - 1) return;
+    this.updateStroll(now);
     this.drawFrame(now);
     this.behave(now);
   }
@@ -325,8 +373,52 @@ export class Capri {
   drawFrame(now = performance.now()) {
     this.lastDraw = now;
     this.animate(now);
-    this.sprite.draw(this.p);
+    if (this.spriteTurn(now)) this.body.frame(now, this.bodyState(now));
+    else this.sprite.draw(this.p);
     this.place();
+  }
+
+  // The drawn sprite-sheet body plays her calm moments (breathing, blinking, glitching, sitting, sleeping, waking, dangling, dancing, walking, talking);
+  // the shader keeps everything with arms, lightning and teleports, her mask and her biochip. Same size, same feet, same flip: hard switch.
+  spriteTurn(now) {
+    const p = this.p;
+    const ready = this.sprites && this.body.ready && !this.hidden && !this.stowed && !this.dormant && !this.pointing && !this.upside && !this.debug;
+    // sitting on a ledge there is only her drawn body: arriving, plopping down, looking around or leaving never swap in the old drawing
+    const seated = ready && this.stance === 'sit' && (!this.act || SEATED_ACTS.includes(this.act.player.name));
+    const calm = seated || this.sprites && this.body.ready && !this.act && !this.hidden && !this.stowed && !this.dormant && !this.pointing
+      && (this.mode === 'idle' || this.mode === 'sleep') && !this.upside
+      && (this.stance === 'stand' || this.stance === 'sit' || this.stance === 'fall')
+      && (!this.busy || this.dragging || this.walking)
+      && p.dissolve < 0.01 && p.collapse < 0.01 && p.silAmount < 0.01 && (this.stance === 'sit' || (p.split < 0.01 && p.glitch < 0.05))
+      && !this.debug;
+    this.seatedBody = seated;
+    if (calm !== this.onBody) {
+      this.onBody = calm;
+      this.canvas.style.opacity = calm ? '0' : '1';
+      this.body.canvas.style.opacity = calm ? '1' : '0';
+      if (calm) this.body.reset(now);
+    }
+    return calm;
+  }
+
+  // arriving and leaving a ledge fade the drawn body in and out (the shader's own comings and goings, dissolve and collapse, stay with the shader)
+  bodyAlpha() {
+    const p = this.p;
+    const a = this.mode === 'sleep' ? 1 : p.alpha;
+    return clamp(a * (1 - Math.max(p.dissolve, p.collapse)), 0, 1);
+  }
+
+  bodyState(now) {
+    return {
+      stance: this.stance,
+      sleeping: this.mode === 'sleep',
+      dragging: this.dragging,
+      walking: this.walking,
+      talking: Boolean(this.isTalking?.()),
+      dance: this.dancing,
+      alpha: this.seatedBody ? this.bodyAlpha() : 1,
+      still: reducedMotion.matches,
+    };
   }
 
   // Pick the drawing: the stance's cycle underneath, the current act on top.
@@ -387,20 +479,25 @@ export class Capri {
     }
     if (this.busy || this.dragging) return;
 
+    // sitting with her drawn body, the shader's twitches, shards and looks would flash her old drawing: the sprites have their own glitches
+    const seatedDrawn = this.sprites && this.body.ready && this.stance === 'sit';
+    this.followFront(now);
+
     if (now > this.nextTwitch) {
       this.nextTwitch = now + rand(5000, 13000);
-      if (!reducedMotion.matches && this.mode !== 'sleep') this.twitch();
+      if (seatedDrawn) this.body.react('glitch');
+      else if (!reducedMotion.matches && this.mode !== 'sleep') this.twitch();
     }
 
     // a shard of her mane breaks off now and then and drifts away
     if (now > this.nextShed) {
       this.nextShed = now + rand(4000, 11000) * (this.mode === 'sleep' ? 2.5 : 1);
-      if (!reducedMotion.matches && this.stance !== 'peek') this.shed();
+      if (!reducedMotion.matches && this.stance !== 'peek' && !seatedDrawn) this.shed();
     }
 
     if (this.mode === 'idle' && this.stance !== 'peek' && now > this.nextGaze) {
       this.nextGaze = now + rand(90000, 180000);
-      this.gaze();
+      if (!seatedDrawn) this.gaze();
     }
 
     if (this.mode === 'idle' && now - this.lastActivity > SLEEP_AFTER) this.setMode('sleep');
@@ -415,7 +512,7 @@ export class Capri {
     }
 
     // resting on the taskbar: a little while after anything happens, she goes back to sit on it
-    if (this.restOn === 'taskbar' && this.mode === 'idle' && this.stance === 'stand'
+    if ((this.restOn === 'corner' || this.restOn === 'taskbar' || this.restOn === 'window') && !this.gameMode && this.mode === 'idle' && this.stance === 'stand'
       && now - this.lastActivity > 6000 && now > this.nextHome) {
       this.nextHome = now + 8000;
       this.goHome();
@@ -434,8 +531,61 @@ export class Capri {
     }
   }
 
+  // She goes and sits on the window you are using, a few seconds after you settle on it (config.followWindow)
+  followFront(now) {
+    const fg = this.windows.fg;
+    if (fg !== this.fgSeen) { this.fgSeen = fg; this.fgSince = now; this.fgTried = 0; return; }
+    if (!this.followWindow || !fg || now - this.fgSince < 4000 || this.mode !== 'idle' || this.busy || this.dragging || this.act) return;
+    if (this.perch?.id === fg || this.fgTried === fg || this.stance === 'peek' || this.stance === 'fall') return;
+    if (now - this.lastActivity < 3000) return;
+    this.fgTried = fg;
+    const seat = this.pickSeat({ frontOnly: true });
+    if (seat) this.sitOn(seat);
+  }
+
+  // She walks, on foot, along the floor to x, with her drawn walking body (the walk sheet of spritebody.js): a stroll across the screen, not a teleport.
+  // Anything else (a click, a drag, a gesture, a mode change, a game) stops her where she is.
+  stroll(toX) {
+    const s = this.scale;
+    if (this.strollState || this.gameMode || this.busy || this.stowed || this.hidden || this.dormant || this.dragging || this.act || this.pointing
+      || this.stance !== 'stand' || this.mode !== 'idle' || !this.sprites || !this.body.ready || reducedMotion.matches) return false;
+    const side = 150 * s + 30;
+    const x = clamp(toX, side, this.view.w - side);
+    const dist = Math.abs(x - this.pos.x);
+    if (dist < 160) return false;
+    this.facing = x < this.pos.x ? 1 : -1; // (1: faces left)
+    this.strollState = { from: this.pos.x, to: x, start: performance.now(), ms: (dist / (95 * Math.max(0.7, s / 0.6))) * 1000 };
+    this.walking = true;
+    return true;
+  }
+
+  updateStroll(now) {
+    const st = this.strollState;
+    if (!st) return;
+    if (this.busy || this.stowed || this.hidden || this.dormant || this.dragging || this.act || this.pointing || this.stance !== 'stand' || this.mode !== 'idle' || this.gameMode) { this.endStroll(); return; }
+    const t = Math.min(1, (now - st.start) / st.ms);
+    this.pos.x = st.from + (st.to - st.from) * t;
+    if (t >= 1) this.endStroll();
+  }
+
+  endStroll() {
+    if (!this.strollState) return;
+    this.strollState = null;
+    this.walking = false;
+    this.nextMove = Math.max(this.nextMove, performance.now() + rand(20000, 50000));
+  }
+
+  // a walk to somewhere far from where she is
+  strollSomewhere() {
+    const w = this.view.w;
+    let x = rand(w * 0.1, w * 0.9);
+    if (Math.abs(x - this.pos.x) < w * 0.25) x = clamp(w - x, w * 0.1, w * 0.9);
+    return this.stroll(x);
+  }
+
   // What she does with herself when nobody needs her.
   wanderStep() {
+    if (this.gameMode) { this.goHome(); return; }
     if (!this.wander || this.stance === 'peek') {
       if (this.stance !== 'peek') this.flourish();
       return;
@@ -454,6 +604,7 @@ export class Capri {
       else this.teleport(this.spot('random'));
       return;
     }
+    if (Math.random() < 0.4 && this.strollSomewhere()) return; // (a walk across the floor, on foot)
     const seat = this.pickSeat();
     const r = Math.random();
     if (seat && r < 0.35) this.sitOn(seat);
@@ -463,6 +614,7 @@ export class Capri {
   }
 
   flourish() {
+    if (this.stance === 'sit' && this.sprites && this.body.ready) { this.body.react('glitch'); return; }
     if (this.stance === 'sit') this.perform(pick(['look', 'look', 'split']));
     else this.perform(pick(['spin', 'look', 'hop', 'curious', 'split']), this.towardCenter());
   }
@@ -548,12 +700,12 @@ export class Capri {
       this.sitOn(seat);
       return;
     }
-    if (this.restOn === 'taskbar') {
+    if (!this.gameMode) {
       this.goHome();
       return;
     }
-    const post = this.spot('post');
-    if (this.stance !== 'stand' || Math.hypot(post.x - this.pos.x, post.y - this.pos.y) > 320) this.teleport(post);
+    const post = this.spot(this.gameMode ? 'chip' : 'post');
+    if (this.stance !== 'stand' || Math.hypot(post.x - this.pos.x, post.y - this.pos.y) > (this.gameMode ? 60 : 320)) this.teleport(post);
   }
 
   // Claude did something: come out of hiding.
@@ -779,7 +931,8 @@ export class Capri {
         this.fx.slices(h.x - 70 * s, h.y - 40 * s, 170 * s, 300 * s, { count: 5 });
         break;
       case 'peak':
-        this.voice.play('done');
+        this.voice.play(this.heavyJob ? 'boom' : 'done');
+        if (this.heavyJob) { const cb = this.onPeakCb; this.onPeakCb = null; cb?.(); }
         this.fx.lines(mane.x, mane.y, { inner: 150 * s + 30 });
         this.fx.ring(mane.x, mane.y);
         this.fx.burst(mane.x, mane.y, { count: 34, power: 1.2, spread: 140 * s });
@@ -949,10 +1102,13 @@ export class Capri {
 
   // Job done: the victory sequence (acting.js), its effects on cue. onSpeak runs when she
   // comes back down (that's when the "done" panel comes in), or at the end if anything cut it short.
-  async celebrate({ onSpeak } = {}) {
+  async celebrate({ onSpeak, heavy = false, onPeak = null } = {}) {
     this.onSpeak = onSpeak;
+    this.heavyJob = heavy; // a heavy job: the peak of her victory is a BOOM, with one of her GIFs (brain.js decides what counts as heavy)
+    this.onPeakCb = onPeak;
     if (reducedMotion.matches || this.stowed || this.dormant) {
-      this.voice.play('done');
+      this.voice.play(heavy ? 'boom' : 'done');
+      if (heavy) onPeak?.();
       this.fireSpeak();
       return;
     }
@@ -1080,7 +1236,9 @@ export class Capri {
       this.dormant = false;
       this.onDoze?.('end');
     }
-    if (reducedMotion.matches) {
+    if (this.gameMode) {
+      this.p.alpha = 0; // (a game has the screen: her window draws very few frames, so no animation: she is folded away at once)
+    } else if (reducedMotion.matches) {
       await tween(this.p, { alpha: 0 }, 160, ease.linear);
     } else {
       if (!from) {
@@ -1560,8 +1718,9 @@ export class Capri {
       if (this.hit(e.clientX, e.clientY)) this.onMenu?.(); // right-click: her menu
     });
     this.canvas.addEventListener('mousedown', (e) => {
-      if (e.button !== 0 || this.busy || !this.hit(e.clientX, e.clientY)) return;
+      if (e.button !== 0 || !this.hit(e.clientX, e.clientY)) return; // (busy or not: a press on her is a click; dragging her needs her free, below)
       down = { x: e.clientX, y: e.clientY, pos: { ...this.pos } };
+      this.pressed = true; // the window stays solid until the button is up, even if she moves under the pointer (or it slips off her edge): else the release goes to what's behind and the click is lost
     });
     window.addEventListener('mousemove', (e) => {
       this.mouse = { x: e.clientX, y: e.clientY }; // a window she's in watches it
@@ -1591,7 +1750,9 @@ export class Capri {
       }
       this.notice(e.clientX, e.clientY);
     });
+    window.addEventListener('blur', () => { down = null; this.pressed = false; this.dragging = false; }); // (a release that never arrives must not leave her stuck solid)
     window.addEventListener('mouseup', () => {
+      this.pressed = false;
       if (!down) return;
       const wasDragging = this.dragging;
       down = null;
@@ -1601,6 +1762,7 @@ export class Capri {
         this.onTeleport?.('end');
         this.drop();
       } else {
+        this.body.react('grin');
         this.onClick?.();
       }
     });

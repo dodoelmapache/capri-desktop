@@ -1,0 +1,153 @@
+/* her clips (clips.js): a framed picture beside her, with viewfinder corners in her red, that opens and closes like her panel */
+.clip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  padding: 6px;
+  background: var(--ink);
+  pointer-events: none;
+  filter: drop-shadow(4px 4px 0 var(--violet));
+  clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+}
+
+.clip img,
+.clip video {
+  display: block;
+  max-height: min(220px, 26vh);
+  max-width: min(280px, 24vw);
+  width: auto;
+  height: auto;
+}
+
+.clip::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--red), var(--red)) left top / 10px 1px no-repeat, linear-gradient(var(--red), var(--red)) left top / 1px 10px no-repeat,
+    linear-gradient(var(--red), var(--red)) right top / 10px 1px no-repeat, linear-gradient(var(--red), var(--red)) right top / 1px 10px no-repeat,
+    linear-gradient(var(--red), var(--red)) left bottom / 10px 1px no-repeat, linear-gradient(var(--red), var(--red)) left bottom / 1px 10px no-repeat,
+    linear-gradient(var(--red), var(--red)) right bottom / 10px 1px no-repeat, linear-gradient(var(--red), var(--red)) right bottom / 1px 10px no-repeat;
+}
+
+.clip--corner img,
+.clip--corner video {
+  max-height: min(250px, 28vh);
+  max-width: min(340px, 26vw);
+}
+
+.clip.is-in {
+  animation: clip-in 200ms steps(3, jump-end) both;
+}
+
+.clip.is-out {
+  animation: clip-out 160ms steps(3, jump-end) both;
+}
+
+@keyframes clip-in {
+  0% { clip-path: inset(49% 50% 49% 50%); }
+  40% { clip-path: inset(49% -10px 49% -10px); }
+  100% { clip-path: inset(-10px -10px -10px -10px); }
+}
+
+@keyframes clip-out {
+  0% { clip-path: inset(-10px -10px -10px -10px); }
+  55% { clip-path: inset(49% -10px 49% -10px); }
+  100% { clip-path: inset(49% 50% 49% 50%); }
+}
+
+
+/* ---- the monitor around the picture ---- */
+.clip {
+  position: fixed;
+}
+
+.clip__scan {
+  position: absolute;
+  inset: 6px;
+  pointer-events: none;
+  background: repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+}
+
+.clip__scan::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 18%;
+  top: -20%;
+  background: linear-gradient(180deg, transparent, color-mix(in oklab, var(--red) 22%, transparent), transparent);
+  animation: clip-sweep 2.6s linear infinite;
+}
+
+@keyframes clip-sweep {
+  from { top: -20%; }
+  to { top: 105%; }
+}
+
+.clip__tab,
+.clip__pill,
+.clip__rec {
+  position: absolute;
+  font: 600 9px var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.clip__tab {
+  top: 6px;
+  left: 6px;
+  padding: 2px 7px 1px;
+  background: var(--ink);
+  color: var(--paper);
+  border-bottom: 1px solid var(--red);
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+}
+
+.clip__pill {
+  left: 8px;
+  bottom: 8px;
+  padding: 2px 8px 1px 6px;
+  background: var(--ink);
+  color: var(--green);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+}
+
+.clip__pill::before {
+  content: '● ';
+  animation: clip-blink 1.1s steps(2, jump-none) infinite;
+}
+
+.clip__rec {
+  right: 9px;
+  bottom: 9px;
+  color: var(--paper);
+  text-shadow: 0 0 2px var(--ink), 0 0 2px var(--ink);
+}
+
+.clip__mark {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  writing-mode: vertical-rl;
+  color: color-mix(in oklab, var(--paper) 55%, transparent);
+  font: 600 11px var(--font-display);
+  letter-spacing: 0.18em;
+  text-shadow: 0 0 2px var(--ink);
+  pointer-events: none;
+}
+
+@keyframes clip-blink {
+  0% { opacity: 1; }
+  100% { opacity: 0.25; }
+}
+
+html[data-motion='reduced'] .clip__scan::after,
+html[data-motion='reduced'] .clip__pill::before {
+  animation: none;
+}

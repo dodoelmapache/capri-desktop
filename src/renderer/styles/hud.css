@@ -1,0 +1,132 @@
+/* Capri's HUD look (opt-in layer on top of capri.css): everything here lives under html[data-look='hud'], so taking that attribute away
+   (her menu: Aspecto / Look > Clásico) puts her back exactly as she was. Inspired by Cyberpunk-2077-style interfaces, but quiet:
+   her palette stays (ink, violet, green), the red of her character is the accent, and nothing sits behind her words.
+
+   What it adds, and only that:
+   - a faint red haze at the top of the card and contour lines at the bottom (a texture you feel, not read)
+   - a HUD rule under her header: a short bright red stretch, then a dim one, then tick marks (like a page header)
+   - a ruler of tiny ticks along the card's left edge
+   - a few hatched warning stripes in the bottom corner
+   - viewfinder corners on the field you type in
+   - one scan line that crosses the card when it appears
+   - a red slash and red quote bar instead of violet ones */
+
+html[data-look='hud'] {
+  --hud-red: var(--red);
+  --hud-red-dim: color-mix(in oklab, var(--red) 38%, transparent);
+  --hud-red-faint: color-mix(in oklab, var(--red) 16%, transparent);
+}
+
+/* ---- the plate: haze, contours, and the line that crosses it when it appears ---- */
+html[data-look='hud'] .panel__plate {
+  background:
+    linear-gradient(180deg, transparent, transparent) 0 -10% / 100% 2px no-repeat, /* (the scan line, below, moves this layer) */
+    radial-gradient(120% 70% at 50% -18%, color-mix(in oklab, var(--red) 17%, transparent), transparent 62%),
+    repeating-radial-gradient(circle at 92% 118%, transparent 0 15px, rgba(255, 255, 255, 0.028) 15px 16px),
+    var(--ink);
+}
+
+html[data-look='hud'] .panel.is-entering .panel__plate {
+  background-image:
+    linear-gradient(180deg, transparent, color-mix(in oklab, var(--red) 70%, transparent) 50%, transparent),
+    radial-gradient(120% 70% at 50% -18%, color-mix(in oklab, var(--red) 17%, transparent), transparent 62%),
+    repeating-radial-gradient(circle at 92% 118%, transparent 0 15px, rgba(255, 255, 255, 0.028) 15px 16px);
+  background-size: 100% 6px, auto, auto;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  animation: hud-scan 520ms steps(8, end) 1 both;
+}
+
+@keyframes hud-scan {
+  from { background-position: 0 -12%, 0 0, 0 0; }
+  to { background-position: 0 112%, 0 0, 0 0; }
+}
+
+html[data-look='hud'][data-motion='reduced'] .panel.is-entering .panel__plate {
+  animation: none;
+}
+
+/* ---- ruler along the left edge, and warning stripes in the bottom corner ---- */
+html[data-look='hud'] .panel__plate::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 24px;
+  bottom: 30px;
+  width: 4px;
+  pointer-events: none;
+  background: repeating-linear-gradient(180deg, var(--hud-red-dim) 0 1px, transparent 1px 5px);
+  -webkit-mask: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
+  mask: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
+}
+
+html[data-look='hud'] .panel__plate::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 34px;
+  height: 7px;
+  pointer-events: none;
+  background: repeating-linear-gradient(135deg, var(--hud-red) 0 3px, transparent 3px 6px);
+  opacity: 0.72;
+}
+
+/* ---- the HUD rule under her header ---- */
+html[data-look='hud'] .panel__meta {
+  position: relative;
+  padding-bottom: 7px;
+  margin-bottom: 8px;
+}
+
+html[data-look='hud'] .panel__meta::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, var(--hud-red) 0 34%, transparent 34%) 0 0 / 100% 2px no-repeat,
+    linear-gradient(90deg, var(--hud-red-dim) 0 100%) 0 1px / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, var(--hud-red) 0 1px, transparent 1px 4px) 100% 0 / 26px 2px no-repeat;
+}
+
+html[data-look='hud'] .panel__tag:not(:empty)::before {
+  color: var(--hud-red);
+}
+
+html[data-look='hud'] .panel__quote {
+  border-left-color: var(--hud-red);
+}
+
+/* an alert or error: her words get a very soft red glow, the one place a glow helps (it is meant to be noticed) */
+html[data-look='hud'] .panel[data-kind='alert'] .panel__line,
+html[data-look='hud'] .panel[data-kind='error'] .panel__line {
+  text-shadow: 0 0 12px color-mix(in oklab, var(--red) 55%, transparent);
+}
+
+/* ---- viewfinder corners on the field you write in ---- */
+html[data-look='hud'] .panel__input {
+  background-image:
+    linear-gradient(var(--hud-red), var(--hud-red)), linear-gradient(var(--hud-red), var(--hud-red)),
+    linear-gradient(var(--hud-red), var(--hud-red)), linear-gradient(var(--hud-red), var(--hud-red));
+  background-size: 8px 1px, 1px 8px, 8px 1px, 1px 8px;
+  background-position: left top, left top, right top, right top;
+  background-repeat: no-repeat;
+}
+
+/* ---- buttons: a red notch that lights up on hover (the shape and colours stay hers) ---- */
+html[data-look='hud'] .panel__action:not(.is-primary):hover {
+  box-shadow: inset 2px 0 0 var(--hud-red);
+}
+
+/* ---- suggestions (her search-box list): red tick on the row you are on ---- */
+html[data-look='hud'] .panel__sug.is-on,
+html[data-look='hud'] .panel__sug:hover {
+  box-shadow: inset 3px 0 0 var(--hud-red);
+}
+
+html[data-look='hud'] .panel__suggest {
+  border-top: 1px solid var(--hud-red-dim);
+}

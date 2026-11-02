@@ -2,10 +2,13 @@
 
 import { linesFor, ASSISTANT_NAMES } from './lines.js';
 import { pick, fmt, duration, basename, rand } from './util.js';
+import { flirtLines, isFlirty } from './ambient-lines.js';
 
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 const HACKING_TOOLS = new Set(['Bash', 'PowerShell', 'WebFetch', 'WebSearch', 'Agent', 'Task']);
 const WORKING_EVERY = 20; // say something about progress every N tool calls
+const HEAVY_JOB_MS = 3 * 60 * 1000; // a job this long (or this busy) ends with a BOOM and one of her GIFs
+const HEAVY_JOB_ACTIONS = 30;
 const LONG_JOB_MS = 8 * 60 * 1000; // a job this long (or this busy) earns the whole satellite sequence
 const LONG_JOB_ACTIONS = 50;
 // mid-task with not a word from Claude: this long and the ticker starts counting (it's thinking),
@@ -30,6 +33,14 @@ export class Brain {
     this.onLinked = null;
     this.onShowcase = null; // the demo's second half (app.js)
     this.onTalk = null;     // opens a chat with her (app.js, chat.js)
+    this.onSessions = null; // opens her chat with the list of her conversations (app.js, chat.js)
+    this.onImage = null;    // opens her chat ready to make the picture you describe (app.js, chat.js)
+    this.onClaude = null;   // opens her chat ready to hand your next message to Claude Code (app.js, chat.js)
+    this.claudeButton = null; // () => boolean: only when her chat isn't Claude Code already
+    this.onWheel = null;    // opens her wheel of apps and power buttons (app.js, wheel.js)
+    this.strip = null;      // what plays, under her card when you click her (nowplaying.js, app.js)
+    this.onAnnounce = null; // (line) => void: she says it out loud, on her own (app.js, talk.js)
+    this.announceMode = 'away'; // when: 'away' (you're elsewhere, or a long job), 'always' or 'never'
     this.watching = true;   // she follows Claude Code (her menu; off, she just keeps you company)
     this.thinkTimer = 0;
     this.thinking = null;   // { s, since, said, fidget, gazed } while Claude is quiet mid-task
@@ -47,8 +58,9 @@ export class Brain {
   session(evt) {
     const id = evt.session_id || 'default';
     let s = this.sessions.get(id);
+    if (s && evt.capri_task) s.capri = true;
     if (!s) {
-      s = { id, project: this.name, taskStart: null, count: 0, files: new Set(), log: [], working: false, waiting: false };
+      s = { id, project: this.name, taskStart: null, count: 0, files: new Set(), log: [], working: false, waiting: false, capri: Boolean(evt.capri_task) };
       this.sessions.set(id, s);
     }
     if (evt.cwd) s.project = basename(evt.cwd);
@@ -61,7 +73,17 @@ export class Brain {
     return [...this.sessions.values()].filter((s) => s.working);
   }
 
+  // Out loud, on her own: Claude finished, wants your permission, crashed. 'away': only when you're
+  // not looking at its window, or after a job that took a while; permission and crashes always.
+  announce(kind, line, evt, loud = true) {
+    if (evt?.demo || !this.onAnnounce || this.announceMode === 'never') return;
+    if (evt?.capri_task && kind !== 'permission') return; // a task she handed Claude: her chat tells you
+    if (kind === 'done' && this.announceMode === 'away' && !loud) return;
+    this.onAnnounce(line);
+  }
+
   say(kind, line, s, extra = {}) {
+    if (s?.capri && kind !== 'alert') return false; // a job she handed Claude: her chat tells you how it went (and what it made), not Claude Code's own cards
     return this.panel.say({ kind, line, tag: s ? s.title || s.project : '', ...extra });
   }
 
@@ -238,16 +260,18 @@ export class Brain {
       this.tally(evt)?.approval();
       this.capri.setMode('alert');
       this.voice.play('alert');
+      const ask = pick(this.t.permission);
+      this.announce('permission', ask, evt);
       // you're on another window: she goes and points at Claude's, where the question is
       const win = this.away(s) && this.capri.windows.wins.find((w) => w.id === s.window);
       if (win && this.capri.canPoint(win)) {
         const quote = [this.t.guide.permissionThere, evt.message].filter(Boolean).join('\n');
-        this.say('alert', pick(this.t.permission), s, { quote, hold: null });
+        this.say('alert', ask, s, { quote, hold: null });
         s.pointedAt = await this.capri.pointAt(win, { label: this.t.guide.labels.claude });
         if (!s.waiting && s.pointedAt) this.capri.stopPointing(); // answered while she was on her way
         return;
       }
-      this.say('alert', pick(this.t.permission), s, { quote: evt.message || '', hold: null });
+      this.say('alert', ask, s, { quote: evt.message || '', hold: null });
       const cursor = await this.host.cursor().catch(() => null);
       if (cursor?.inside) await this.capri.summon(cursor);
       const toward = cursor?.inside ? Math.sign(cursor.x - this.capri.pos.x) || 1 : this.capri.towardCenter();
@@ -283,10 +307,14 @@ export class Brain {
     // Not on Claude's window any more: you can't see the answer, so she brings it to you, whole,
     // and holds it up until you're back on Claude's window or click it away.
     const reply = this.away(s) ? readable(evt.last_assistant_message || '') : '';
+    const long = s.count >= 3 || (s.taskStart && Date.now() - s.taskStart > 20000);
+    const away = this.away(s);
     const done = (extra) => {
+      const line = pick(reply ? this.t.reply : this.t.done);
       if (reply) this.replyFor = s;
-      if (reply) this.say('done', pick(this.t.reply), s, { ...extra, reply, hold: null });
-      else this.say('done', pick(this.t.done), s, { ...extra, quote: clip(quote, 150) });
+      if (reply) this.say('done', line, s, { ...extra, reply, hold: null });
+      else this.say('done', line, s, { ...extra, quote: clip(quote, 150) });
+      if (wasWorking || s.count) this.announce('done', line, evt, away || long);
     };
     if (!wasWorking && !s.count) {
       // a Stop with nothing before it: just say it quietly
@@ -299,7 +327,8 @@ export class Brain {
     const bigJob = s.count >= 3 || (s.taskStart && Date.now() - s.taskStart > 20000);
     if (bigJob) await this.capri.teleport(this.capri.spot('stage'));
     // the panel comes in once she's back down from her victory pose
-    this.capri.celebrate({ onSpeak: () => done({ summary, hold: 14000 }) });
+    const heavyJob = Boolean((s.taskStart && Date.now() - s.taskStart >= HEAVY_JOB_MS) || s.count >= HEAVY_JOB_ACTIONS);
+    this.capri.celebrate({ onSpeak: () => done({ summary, hold: 14000 }), heavy: heavyJob, onPeak: () => this.onBoom?.() });
     // a long one: she'll send the red light up to the satellite once it's all quiet
     if ((s.taskStart && Date.now() - s.taskStart >= LONG_JOB_MS) || s.count >= LONG_JOB_ACTIONS) this.capri.earnUplink();
   }
@@ -328,7 +357,9 @@ export class Brain {
     this.capri.hurt();
     this.voice.play('error');
     const detail = evt.error || evt.message || '';
-    this.say('error', pick(this.t.crashed), s, { face: 'wide', quote: clip(String(detail), 120), hold: 9000 });
+    const crashed = pick(this.t.crashed);
+    this.announce('crash', crashed, evt);
+    this.say('error', crashed, s, { face: 'wide', quote: clip(String(detail), 120), hold: 9000 });
   }
 
   onSubagent(evt, s, starting) {
@@ -351,12 +382,14 @@ export class Brain {
   // Something to say with nothing going on: one of your lines half the time, if you wrote some.
   idleLine() {
     const mine = this.custom.myLines || [];
+    if (isFlirty(this.custom.persona) && Math.random() < 0.55) return fmt(pick(flirtLines(this.lang).idle), { name: this.custom.userName || 'choom' });
     return fmt(mine.length && Math.random() < 0.5 ? pick(mine) : pick(this.t.idle), { name: this.custom.userName || 'choom' });
   }
 
   // What she says when she comes online: with your name, if she knows it.
   onlineLine() {
     const name = this.custom.userName;
+    if (name && isFlirty(this.custom.persona) && Math.random() < 0.65) return fmt(pick(flirtLines(this.lang).online), { name });
     return name ? fmt(pick(this.t.custom.onlineName), { name }) : pick(this.t.online);
   }
 
@@ -364,8 +397,25 @@ export class Brain {
   status() {
     const busy = this.busySessions;
     if (!busy.length) {
-      const talk = this.onTalk && { actions: [{ id: 'talk', label: this.t.chat.talk }], onAction: () => this.onTalk(), hold: 6000 };
-      this.say('idle', this.idleLine(), null, { face: pick(['calm', 'smug', 'aside']), hold: 4000, ...talk });
+      // Nothing going on: the click opens her chat itself (the box to write in, Claude, Image, Chats, the music), with her idle line as
+      // the first thing she says, so you can type at once instead of pressing "Talk to me" first.
+      if (this.onTalk) {
+        this.onTalk({ greeting: { line: this.idleLine(), face: pick(['calm', 'smug', 'aside']) } });
+        return;
+      }
+      const talk = this.onTalk && {
+        actions: [
+          { id: 'talk', label: this.t.chat.talk },
+          ...(this.onSessions ? [{ id: 'sessions', label: this.lang === 'en' ? 'Chats' : 'Conversaciones' }] : []), // where the wheel button was: the wheel has its own key (Ctrl+Alt+R)
+          ...(this.onClaude && this.claudeButton?.() ? [{ id: 'claude', label: 'Claude' }] : []), // straight to Claude Code, no message first
+          ...(this.onImage ? [{ id: 'image', label: this.lang === 'en' ? 'Image' : 'Imagen' }] : []), // straight to making a picture
+        ],
+        onAction: (id) => (id === 'sessions' ? this.onSessions() : id === 'claude' ? this.onClaude() : id === 'image' ? this.onImage() : this.onTalk()),
+        hold: 6000,
+      };
+      const strip = this.strip && { nowStrip: true, onLeave: () => this.strip.stop() };
+      const shown = this.say('idle', this.idleLine(), null, { face: pick(['calm', 'smug', 'aside']), hold: 4000, ...talk, ...strip });
+      if (shown && strip) this.strip.start(); // music playing: the strip shows up under her line, on its own
       return;
     }
     const s = busy.sort((a, b) => b.seen - a.seen)[0];

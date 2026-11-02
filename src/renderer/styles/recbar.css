@@ -1,0 +1,79 @@
+/* the bar while a screen clip is recorded: time, PAUSAR / SEGUIR, DETENER */
+.recbar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--ink);
+  color: var(--paper);
+  border-left: 4px solid var(--red);
+  clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px);
+  filter: drop-shadow(4px 4px 0 var(--violet));
+  font: 600 12px var(--font-mono);
+  letter-spacing: 0.08em;
+  will-change: transform;
+}
+
+.recbar[hidden] {
+  display: none;
+}
+
+.recbar__dot {
+  width: 10px;
+  height: 10px;
+  background: var(--red);
+  animation: rec-blink 1s steps(2, end) infinite;
+}
+
+.recbar.is-paused .recbar__dot {
+  background: var(--paper-3);
+  animation: none;
+}
+
+.recbar__state {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.recbar.is-paused .recbar__state {
+  color: var(--paper-3);
+}
+
+.recbar__time {
+  min-width: 46px;
+  font-size: 14px;
+}
+
+.recbar__limit {
+  color: var(--paper-3);
+}
+
+.recbar__btn {
+  padding: 6px 12px 5px;
+  border: 0;
+  background: var(--violet);
+  color: var(--paper);
+  font: inherit;
+  cursor: pointer;
+  clip-path: polygon(5px 0, 100% 0, 100% 100%, 0 100%, 0 5px);
+}
+
+.recbar__btn:hover {
+  filter: brightness(1.15);
+}
+
+.recbar__btn.is-stop {
+  background: var(--red);
+}
+
+@keyframes rec-blink {
+  50% { opacity: 0.25; }
+}
+
+html[data-motion='reduced'] .recbar__dot {
+  animation: none;
+}

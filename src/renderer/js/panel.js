@@ -1,5 +1,6 @@
 // The transmission panel next to Capri, and the one-line ticker she wears while Claude works.
 
+import { parse, render } from './md.js';
 import { clamp, ease, reducedMotion } from './util.js';
 
 const NOISE = '▚▞▙▟░▒#%&/\\<>01XZ';
@@ -17,10 +18,29 @@ export const FACES = {
   many: 'face-many.png',   // all her eyes on you
   grin: 'capri-face.png',
 };
-const KIND_FACE = { alert: 'many', done: 'look', error: 'laugh', work: 'calm', idle: 'calm', report: 'smug', chat: 'look' };
-const PRIORITY = { info: 1, idle: 1, work: 2, done: 3, error: 3, report: 3, chat: 3, alert: 4 };
+const KIND_FACE = { alert: 'many', done: 'look', error: 'laugh', work: 'calm', idle: 'calm', report: 'smug', chat: 'look', music: 'smug' };
+const PRIORITY = { info: 1, idle: 1, work: 2, done: 3, error: 3, report: 3, chat: 3, music: 3, alert: 4 };
 const DECODE_STEP_MS = 28;
 const COUNT_MS = 700; // her report's numbers counting up
+
+// icons of the mode bar (chat.js modeList ids): stroke paths on a 24x24 grid, parts split by |
+const MODE_ICONS = {
+  claude: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z',
+  'cm-haiku': 'M13 2L4 14h7l-1 8 9-12h-7z',
+  'cm-sonnet': 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z',
+  'cm-opus': 'M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5l-5.4 3 1.2-6L3.3 9.3l6.1-.7z',
+  code: 'M8 8l-4 4 4 4|M16 8l4 4-4 4|M13.5 6l-3 12',
+  design: 'M4 20l1-4L16 5l3 3L8 19z|M14 7l3 3',
+  image: 'M4 5h16v14H4z|M4 16l5-5 4 4 3-3 4 4|M15 9.5h.01',
+  sessions: 'M4 5h16v11H10l-5 4v-4H4z',
+  window: 'M14 4h6v6|M10 20H4v-6|M20 4l-7 7|M4 20l7-7',
+  player: 'M7 4l13 8-13 8z',
+  dnd: 'M20 14.5A8 8 0 1 1 9.5 4 6.5 6.5 0 0 0 20 14.5z',
+  settings: 'M4 7h9|M17 7h3|M13 4v6|M4 17h3|M11 17h9|M7 14v6',
+  organize: 'M3 6h6l2 2h10v11H3z',
+  phoneSend: 'M7 3h8v18H7z|M17 12V6|M14.8 8.2L17 6l2.2 2.2',
+  phoneReceive: 'M7 3h8v18H7z|M17 6v6|M14.8 9.8L17 12l2.2-2.2',
+};
 
 export class Panel {
   constructor({ panel, ticker, labels }) {
@@ -28,6 +48,12 @@ export class Panel {
     this.tickerEl = ticker;
     this.labels = labels;
     this.line = panel.querySelector('.panel__line');
+    this.lineMain = this.line; // her chat writes into a bubble instead (setBubbles); everything else, here
+    this.onUi = null; // (kind) => void: something you did in her chat has a sound (uisound.js)
+    this.bubbles = false;
+    this.bubList = null;
+    this.liveRow = null;
+    this.stick = true;
     this.stopStream(); // her chat answer, decoding in (stream)
     this.streamTo = [];
     this.portrait = panel.querySelector('.panel__face img');
@@ -61,28 +87,536 @@ export class Panel {
     // talking to her (chat.js): a line to type in, under her answer
     this.chatForm = panel.querySelector('.panel__chat');
     this.chatInput = panel.querySelector('.panel__input');
+    this.plus = panel.querySelector('.panel__plus'); // + : attach files
+    this.chips = panel.querySelector('.panel__chips'); // what's attached
+    this.threadEl = panel.querySelector('.panel__thread'); // the conversation so far
+    this.modesEl = panel.querySelector('.panel__modes'); // Claude / Image / Chats
+    this.sessionsEl = panel.querySelector('.panel__sessions'); // her conversations: the list, or one of them whole
+    this.suggestEl = document.createElement('div'); // the apps that match what you type, above the input
+    this.suggestEl.className = 'panel__suggest';
+    this.suggestEl.hidden = true;
+    this.chatForm.before(this.suggestEl);
+    this.suggest = { items: [], hot: -1, onPick: null };
+    this.onType = null;
+    this.onSay = null;
+    this.swatchEl = document.createElement('div'); // colours (a palette): each one copies itself
+    this.swatchEl.className = 'panel__swatches';
+    this.swatchEl.hidden = true;
+    this.sessionsEl.before(this.swatchEl);
     this.chatSend = panel.querySelector('.panel__send');
     this.chatClose = panel.querySelector('.panel__close');
+    this.now = panel.querySelector('.panel__now'); // what plays, under her chat's line to type in
+    this.nowKey = '';
+    this.chatReset = panel.querySelector('.panel__reset'); // ↻ and the answers so far (Claude Code's chat)
     this.note = panel.querySelector('.panel__note');
+    // every button of hers (and each row of her menu) clicks, and jolts like her lines do; what it is decides the sound
+    this.el.addEventListener('click', (e) => {
+      const t = e.target?.closest?.('button, .panel__sess');
+      if (!t || t.disabled || t.classList.contains('panel__send')) return; // sending has its own, on submit
+      const lit = t.classList.contains('is-on');
+      const id = t.dataset?.id || '';
+      let kind = 'press';
+      if (t.closest('.panel__modes') && id) kind = id === 'sessions' ? (lit ? 'close' : 'open') : id === 'window' ? 'window' : (id === 'code' || id === 'design') ? 'go' : id === 'image' && !lit ? 'image' : lit ? 'off' : 'on';
+      else if (t.classList.contains('panel__sess')) kind = t.classList.contains('panel__sess--more') ? 'window' : 'switch';
+      else if (t.closest('.panel__sess') && t.tagName === 'BUTTON') kind = 'delete';
+      else if (t.textContent?.includes('⤢')) kind = 'window';
+      this.onUi?.(kind);
+      this.pressed(t);
+    }, true);
     this.chatForm.addEventListener('click', (e) => e.stopPropagation());
     this.chatForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const text = this.chatInput.value.trim();
-      if (!text || this.chatInput.disabled) return;
+      const hasFiles = Boolean(this.current?.chat?.hasFiles?.()); // a file alone is a message too
+      if ((!text && !hasFiles) || this.chatInput.disabled) return;
       this.chatInput.value = '';
+      this.grow();
+      this.onUi?.('send');
+      this.setSuggestions([]);
       this.current?.onSend?.(text);
     });
+    // Enter sends, Shift+Enter is a new line; the box grows as you write
+    // Pressing her box always asks for the keyboard (the window may not be focusable at that moment, and then the letters would go to the
+    // program behind): the main process makes it so and gives it the keyboard within a few milliseconds
+    this.chatInput.addEventListener('pointerdown', () => window.host?.focusOverlay?.(true));
+    this.chatInput.addEventListener('focus', () => window.host?.focusOverlay?.(true));
     this.chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') this.hide();
+      const sug = this.suggest.items.length > 0 && !this.suggestEl.hidden;
+      if (sug && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Tab')) { // her suggestions: move along them
+        e.preventDefault();
+        this.moveSuggestion(e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey) ? -1 : 1);
+      } else if (sug && e.key === 'Escape') { // the first Esc only puts the suggestions away
+        e.preventDefault();
+        this.setSuggestions([]);
+      } else if (e.key === 'Escape') this.hide();
+      else if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        if (sug && this.suggest.hot >= 0) this.pickSuggestion(this.suggest.hot); // chosen with the arrows: that one opens
+        else this.chatForm.requestSubmit();
+      }
     });
+    this.chatInput.addEventListener('input', () => {
+      this.grow();
+      this.onType?.(this.chatInput.value); // (chat.js: the apps that match what you're typing)
+    });
+    this.plus.addEventListener('click', () => this.current?.chat?.onAttach?.());
+    // a screenshot or picture pasted into the box becomes an attachment
+    this.chatInput.addEventListener('paste', async (e) => {
+      const files = [...(e.clipboardData?.files || [])];
+      if (!files.length || !this.current?.chat?.onFiles) return;
+      e.preventDefault();
+      const paths = [];
+      for (const file of files) {
+        const own = window.host?.pathOf?.(file);
+        if (own) paths.push(own);
+        else {
+          const ext = (file.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+          const saved = await window.host?.saveClip?.(await file.arrayBuffer(), ext);
+          if (saved) paths.push(saved);
+        }
+      }
+      if (paths.length) {
+        this.onUi?.('drop');
+        this.current.chat.onFiles(paths);
+      }
+    });
+    this.bindDrop();
     this.chatClose.addEventListener('click', () => this.hide());
+    this.chatReset.addEventListener('click', () => this.current?.chat?.onReset?.());
 
-    this.el.addEventListener('click', () => {
+    this.el.addEventListener('click', (e) => {
+      if (e.target?.closest?.('.panel__thread, .panel__sessions')) return; // selecting text there: leave it alone
+      const picked = globalThis.getSelection?.();
+      if (picked && !picked.isCollapsed) return;
       if (this.current?.chat) this.chatInput.focus(); // a chat stays until you close it
       else this.hide();
     });
     this.portrait.addEventListener('animationend', (e) => {
       if (e.animationName === 'face-swap') this.portrait.classList.remove('is-swapping');
+    });
+  }
+
+  // The line to type in grows with what you write (up to a point, then it scrolls)
+  grow() {
+    const el = this.chatInput;
+    el.style.height = 'auto';
+    const border = el.offsetHeight - el.clientHeight;
+    el.style.height = `${Math.min(el.scrollHeight + border, 220)}px`;
+    if (!this.el.hidden) this.place();
+  }
+
+  // The jolt of a button pressed (not with reduced motion)
+  pressed(el) {
+    if (reducedMotion.matches) return;
+    el.classList.remove('is-pressed');
+    void el.offsetWidth; // restart the animation
+    el.classList.add('is-pressed');
+    setTimeout(() => el.classList.remove('is-pressed'), 260);
+  }
+
+  // Her bubble opens (it has words now): from the left, with a glitch
+  revealLive() {
+    if (!this.liveRow?.hidden) return;
+    this.liveRow.hidden = false;
+    if (!reducedMotion.matches) this.liveRow.classList.add('is-new');
+  }
+
+  // ---- her chat as bubbles ----
+  // One side or the other: yours on the right, hers on the left (with her markdown, if it has any)
+  // The answer that was being written is dropped (it wasn't true): nothing of it stays on screen
+  discardLive() {
+    clearInterval(this.decodeTimer);
+    this.stopStream();
+    if (this.bubbles && this.liveRow) this.liveRow.hidden = true;
+    if (this.line) this.line.textContent = '';
+  }
+
+  // What was made (files): under the bubble that told about it, a button for each one that opens it. They stay there as the chat goes on.
+  setFileHandlers(h) {
+    this.fileHandlers = h; // { open(path), reveal(path), labels: { open, reveal } }
+  }
+
+  fileRow(files) {
+    const h = this.fileHandlers;
+    if (!files?.length || !h) return null;
+    const row = document.createElement('div');
+    row.className = 'panel__row panel__row--capri panel__row--files';
+    const box = document.createElement('div');
+    box.className = 'panel__bubfiles';
+    const make = (text, run, primary) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = primary ? 'panel__action is-primary' : 'panel__action';
+      b.textContent = text;
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        run();
+      });
+      return b;
+    };
+    for (const f of files.slice(0, 4)) {
+      const name = String(f).split(/[\\/]/).pop();
+      box.append(make(`${h.labels.open} ${name.length > 30 ? `${name.slice(0, 27)}...` : name}`, () => h.open(f), true));
+    }
+    box.append(make(h.labels.reveal, () => h.reveal(files[0]), false));
+    row.append(box);
+    return row;
+  }
+
+  // the answer on screen just told about these files
+  bubbleFiles(files) {
+    const row = this.fileRow(files);
+    if (!row || !this.bubList) return false;
+    this.bubList.append(row);
+    this.toBottom();
+    if (!this.el.hidden) this.place();
+    return true;
+  }
+
+  bubbleRow(role, text) {
+    const row = document.createElement('div');
+    row.className = role === 'user' ? 'panel__row panel__row--me' : 'panel__row panel__row--capri';
+    const bub = document.createElement('div');
+    bub.className = 'panel__bub';
+    this.fillBubble(bub, role, text);
+    row.append(bub);
+    return row;
+  }
+
+  fillBubble(bub, role, text) {
+    const clean = String(text || '').replace(/\bFILES?:[ \t]*[^\n]*/g, '').trim();
+    if (role === 'user') bub.textContent = clean;
+    else bub.replaceChildren(render(parse(clean), document, { onLink: (u) => window.host?.openExternal?.(u), onCopy: (t) => window.host?.copy?.(t), labels: { copy: 'Copy', copied: 'Copied' } }));
+  }
+
+  // All of the conversation, and a last bubble of hers (empty until she writes: it's where her next words go)
+  setBubbles(messages = []) {
+    const list = document.createElement('div');
+    list.className = 'panel__bubbles is-switching';
+    for (const m of messages) {
+      list.append(this.bubbleRow(m.role, m.content));
+      const files = m.role === 'assistant' ? this.fileRow(m.files) : null;
+      if (files) list.append(files);
+    }
+    list.addEventListener('scroll', () => {
+      this.stick = list.scrollHeight - list.scrollTop - list.clientHeight < 40; // reading further up: it stays there
+    });
+    this.bubList = list;
+    this.threadEl.replaceChildren(list);
+    this.threadEl.hidden = false;
+    this.stick = true;
+    this.newLive();
+    this.toBottom();
+    if (!this.el.hidden) this.place();
+  }
+
+  // Her next bubble: hidden until it has words; the streaming and decoding write into it (this.line)
+  newLive() {
+    const row = document.createElement('div');
+    row.className = 'panel__row panel__row--capri';
+    row.hidden = true;
+    const bub = document.createElement('div');
+    bub.className = 'panel__bub';
+    row.append(bub);
+    this.bubList.append(row);
+    this.liveRow = row;
+    this.line = bub;
+  }
+
+  toBottom() {
+    if (this.bubList && this.stick) this.bubList.scrollTop = this.bubList.scrollHeight;
+  }
+
+  // The conversation so far, above your last message and her answer: scrollable, selectable, with a way to the big window.
+  // messages: [{ role, content }]; labels: { title, you, capri, window }; onWindow()
+  setThread(messages = [], { labels = {}, onWindow = null } = {}) {
+    const box = this.threadEl;
+    if (!messages.length) {
+      if (!box.hidden || box.children.length) {
+        box.hidden = true;
+        box.replaceChildren();
+        if (!this.el.hidden) this.place();
+      }
+      return;
+    }
+    const head = document.createElement('div');
+    head.className = 'panel__thread-head';
+    const title = document.createElement('span');
+    title.textContent = `${labels.title || ''} · ${messages.length}`;
+    head.append(title);
+    if (onWindow) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = labels.window || '';
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onWindow();
+      });
+      head.append(b);
+    }
+    const list = document.createElement('div');
+    list.className = 'panel__thread-list';
+    for (const m of messages) {
+      const block = document.createElement('div');
+      block.className = m.role === 'user' ? 'panel__msg' : 'panel__msg is-capri';
+      const who = document.createElement('small');
+      who.textContent = m.role === 'user' ? labels.you : labels.capri;
+      block.append(who);
+      const text = String(m.content || '').replace(/\bFILES?:[ \t]*[^\n]*/g, '').trim();
+      const cut = text.length > 1200 ? `${text.slice(0, 1200)}…` : text;
+      if (m.role === 'user') block.append(document.createTextNode(cut));
+      else block.append(render(parse(cut), document, { onLink: (u) => window.host?.openExternal?.(u), onCopy: (t) => window.host?.copy?.(t), labels: { copy: labels.copy || 'Copy', copied: labels.copied || 'Copied' } }));
+      list.append(block);
+    }
+    box.replaceChildren(head, list);
+    box.hidden = false;
+    list.scrollTop = list.scrollHeight; // the latest of it first
+    if (!this.el.hidden) this.place();
+  }
+
+  // The bar under her answer: [{ id, label, on, info }], onPick(id). One that's on is lit; info is a label, not a button.
+  // the little drawing on each button of the bar: one stroke path per mode (24x24, drawn in the button's own colour)
+  modeIcon(id) {
+    const d = MODE_ICONS[id];
+    if (!d) return null;
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('class', 'panel__ico');
+    svg.setAttribute('aria-hidden', 'true');
+    for (const part of d.split('|')) {
+      const path = document.createElementNS(NS, 'path');
+      path.setAttribute('d', part);
+      svg.appendChild(path);
+    }
+    return svg;
+  }
+
+  // what a button of the bar is for, in a line under it while the pointer (or the keyboard) is on it
+  showModeHint(text) {
+    if (!this.modeHint) {
+      this.modeHint = document.createElement('div');
+      this.modeHint.className = 'panel__modehint';
+      this.modeHint.setAttribute('aria-hidden', 'true');
+      this.modesEl.after(this.modeHint);
+    }
+    this.modeHint.textContent = text || '';
+    this.modeHint.hidden = !text;
+  }
+
+  setModes(list = [], onPick = null) {
+    this.showModeHint('');
+    this.modesEl.replaceChildren(...list.map(({ id, label, on, info, tip }) => {
+      if (info) {
+        const tag = document.createElement('span');
+        tag.className = 'panel__modelabel';
+        tag.textContent = label;
+        return tag;
+      }
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = on ? 'panel__action is-on' : 'panel__action';
+      b.dataset.id = id;
+      const ico = this.modeIcon(id);
+      const text = document.createElement('span');
+      text.textContent = label;
+      b.replaceChildren(...(ico ? [ico, text] : [text]));
+      if (tip) {
+        b.title = tip;
+        b.setAttribute('aria-label', `${label}: ${tip}`);
+        const on_ = () => this.showModeHint(tip);
+        b.addEventListener('mouseenter', on_);
+        b.addEventListener('focus', on_);
+        b.addEventListener('mouseleave', () => this.showModeHint(''));
+        b.addEventListener('blur', () => this.showModeHint(''));
+      }
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onPick?.(id);
+      });
+      return b;
+    }));
+    this.modesEl.hidden = !list.length;
+    if (!this.el.hidden) this.place();
+  }
+
+  get sessionsOpen() {
+    return !this.sessionsEl.hidden && this.sessionsEl.children.length > 0;
+  }
+
+  hideSessions() {
+    if (this.sessionsEl.hidden && !this.sessionsEl.children.length) return;
+    this.sessionsEl.hidden = true;
+    this.sessionsEl.replaceChildren();
+    this.el.classList.remove('has-list');
+    if (!this.el.hidden) this.place();
+  }
+
+  // Her conversations, newest first: click one to go back to it. items: [{ id, title, when, count }]
+  // labels: { fresh, whole, close, empty }; onOpen(id), onNew(), onDelete(id), onWhole(), onClose()
+  showSessions({ items = [], currentId = null, total = items.length, labels = {}, archived = false, archivedCount = 0, onOpen, onNew, onDelete, onArchive, onToggleArchived, onWhole, onWindow, onClose }) {
+    const button = (text, run, primary = false) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = primary ? 'panel__action is-primary' : 'panel__action';
+      b.textContent = text;
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        run();
+      });
+      return b;
+    };
+    const head = document.createElement('div');
+    head.className = 'panel__sess-head';
+    head.append(...(archived ? [button(labels.back, () => onToggleArchived?.(), true)] : [button(labels.fresh, () => onNew?.(), true)]), ...(onWindow ? [button(labels.window, () => onWindow())] : []), ...(onWhole ? [button(labels.whole, () => onWhole())] : []), button(labels.close, () => onClose?.()));
+    const rows = items.map((item) => {
+      const row = document.createElement('div');
+      row.className = item.id === currentId ? 'panel__sess is-current' : 'panel__sess';
+      const title = document.createElement('b');
+      title.textContent = item.title || labels.empty;
+      title.title = item.title || '';
+      const when = document.createElement('small');
+      when.textContent = item.when || '';
+      const arch = document.createElement('button');
+      arch.type = 'button';
+      arch.textContent = archived ? '↩' : '▣';
+      arch.title = archived ? labels.restore : labels.archive;
+      arch.setAttribute('aria-label', archived ? 'restore' : 'archive');
+      arch.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onArchive?.(item.id, !archived);
+      });
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.textContent = '✕';
+      del.setAttribute('aria-label', 'delete');
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onDelete?.(item.id);
+      });
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onOpen?.(item.id);
+      });
+      row.append(title, when, ...(onArchive ? [arch] : []), del);
+      return row;
+    });
+    // the ones put away: a row at the end of the list, to see them (and to come back)
+    const shelf = !archived && archivedCount > 0 && onToggleArchived ? [(() => {
+      const row = document.createElement('div');
+      row.className = 'panel__sess panel__sess--shelf';
+      const text = document.createElement('b');
+      text.textContent = labels.archivedRow?.(archivedCount) || '';
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onToggleArchived();
+      });
+      row.append(text);
+      return row;
+    })()] : [];
+    // more than fit here: the rest are in the big window
+    const more = total > items.length && onWindow ? [(() => {
+      const row = document.createElement('div');
+      row.className = 'panel__sess panel__sess--more';
+      const text = document.createElement('b');
+      text.textContent = labels.more?.(total) || '';
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onWindow();
+      });
+      row.append(text);
+      return row;
+    })()] : [];
+    this.sessionsEl.replaceChildren(head, ...rows, ...more, ...shelf);
+    this.sessionsEl.hidden = false;
+    this.el.classList.add('has-list'); // the conversation above it shortens to leave room
+    this.place();
+  }
+
+  // One conversation, all of it, to read and copy from. messages: [{ role, content }]; labels: { you, capri, back }
+  showTranscript({ messages = [], labels = {}, onBack }) {
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'panel__action';
+    back.textContent = labels.back;
+    back.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onBack?.();
+    });
+    const head = document.createElement('div');
+    head.className = 'panel__sess-head';
+    head.append(back);
+    const blocks = messages.map((m) => {
+      const block = document.createElement('div');
+      block.className = m.role === 'user' ? 'panel__msg' : 'panel__msg is-capri';
+      const who = document.createElement('small');
+      who.textContent = m.role === 'user' ? labels.you : labels.capri;
+      block.append(who, m.content);
+      return block;
+    });
+    this.sessionsEl.replaceChildren(head, ...blocks);
+    this.sessionsEl.hidden = false;
+    this.sessionsEl.scrollTop = this.sessionsEl.scrollHeight; // the end first: where you were
+    this.place();
+  }
+
+  // What's attached, as little tags above the line to type in; ✕ takes one off (onRemove(index))
+  setChips(items = [], onRemove = null) {
+    this.chips.replaceChildren(...items.map((item, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'panel__chip';
+      chip.title = item.path || item.name;
+      const name = document.createElement('span');
+      name.textContent = item.name;
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.textContent = '✕';
+      x.setAttribute('aria-label', 'remove');
+      x.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onRemove?.(i);
+      });
+      chip.append(name, x);
+      return chip;
+    }));
+    this.chips.hidden = !items.length;
+    if (!this.el.hidden) this.place();
+  }
+
+  insertText(text) {
+    const el = this.chatInput;
+    el.value = `${el.value}${el.value && !/\s$/.test(el.value) ? ' ' : ''}${text}`;
+    this.grow();
+    el.focus();
+  }
+
+  // Drop a file on her (the chat open) and it's attached; a link dragged from the browser lands in the box
+  bindDrop() {
+    const wants = (e) => this.current?.chat?.onFiles && [...(e.dataTransfer?.types || [])].some((t) => ['Files', 'text/uri-list', 'text/plain'].includes(t));
+    const over = (e) => {
+      if (!wants(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      this.el.classList.add('is-drop');
+    };
+    this.el.addEventListener('dragenter', over);
+    this.el.addEventListener('dragover', over);
+    this.el.addEventListener('dragleave', (e) => {
+      if (!this.el.contains(e.relatedTarget)) this.el.classList.remove('is-drop');
+    });
+    this.el.addEventListener('drop', (e) => {
+      if (!wants(e)) return;
+      e.preventDefault();
+      this.el.classList.remove('is-drop');
+      const dt = e.dataTransfer;
+      const paths = [...(dt.files || [])].map((f) => window.host?.pathOf?.(f)).filter(Boolean);
+      if (paths.length) {
+        this.onUi?.('drop');
+        return this.current.chat.onFiles(paths);
+      }
+      const link = (dt.getData('text/uri-list') || dt.getData('text/plain') || '').trim();
+      if (link) this.insertText(link);
+      return undefined;
     });
   }
 
@@ -112,7 +646,7 @@ export class Panel {
       return false;
     }
     // nor on something you may be reading: an answer, her report (progress lines don't knock it off)
-    if (cur?.reply && this.visible && PRIORITY[msg.kind] < 2) return false;
+    if (cur?.reply && this.visible && PRIORITY[msg.kind] < 2 && !(cur.pile && msg.pile)) return false; // (a card of chat messages is replaced by the next batch of them)
     if (cur?.report && this.visible && PRIORITY[msg.kind] < 3) return false;
     // nor on a chat with her: only a permission prompt breaks in; Claude finishing waits until after
     // (even while she teleports and the panel is put aside for a moment). Her setup's panels with a
@@ -128,6 +662,7 @@ export class Panel {
 
     this.el.dataset.kind = msg.kind;
     this.setFace(msg.face || KIND_FACE[msg.kind] || 'grin');
+    if (msg.face === 'laugh') this.onLaugh?.(); // (her little giggle: app.js decides if it is the moment)
     this.tag.textContent = msg.tag || '';
     this.state.textContent = msg.badge || this.labels.state[msg.kind] || '';
     this.quote.textContent = msg.quote || '';
@@ -139,7 +674,9 @@ export class Panel {
     this.el.classList.toggle('has-reply', Boolean(msg.reply));
     this.el.classList.toggle('has-report', Boolean(msg.report));
     this.el.classList.toggle('is-guide', Boolean(msg.guide));
+    this.el.classList.toggle('is-compact', Boolean(msg.compact)); // a small remark (when she wakes by herself): her face and one line, no header
     this.renderReport(msg.report);
+    this.setSwatches([]);
     this.renderActions(msg.actions, msg.onAction);
     this.renderChat(msg.chat);
     this.summary.textContent = msg.summary || '';
@@ -153,6 +690,7 @@ export class Panel {
     this.replayEnter();
     this.place();
     this.decode(msg.line || '', msg.kind);
+    this.onSay?.(msg); // (her clips look at what is being said)
 
     if (msg.hold) this.hideTimer = setTimeout(() => this.hide(), msg.hold);
     return true;
@@ -162,6 +700,114 @@ export class Panel {
   setProgress(k) {
     this.progress.hidden = typeof k !== 'number';
     if (!this.progress.hidden) this.bar.style.transform = `scaleX(${clamp(k, 0, 1).toFixed(3)})`;
+  }
+
+  // The strip under her cards: what plays on your PC, a row for your music and another for a video or whatever
+  // else plays (nowplaying.js pickCards). cards: [{ kind: 'music' | 'video', title, meta, playing, target, appId }];
+  // onPress(id, card): 'previous' | 'toggle' | 'next'.
+  renderNow(cards, onPress) {
+    if (!this.current?.chat && !this.current?.nowStrip) return; // her chat, or a card that asked for it
+    const wasHidden = this.now.hidden;
+    if (!cards?.length) {
+      this.now.hidden = true;
+      this.nowKey = '';
+      if (!wasHidden) this.place();
+      return;
+    }
+    const key = cards.map((card) => `${card.kind}:${card.playing}`).join('|');
+    const changed = wasHidden || key !== this.nowKey;
+    if (changed) { // the rows only change when something starts, stops or turns into pause
+      this.nowKey = key;
+      this.now.replaceChildren(...cards.map((card) => this.nowRow(card, onPress)));
+    }
+    cards.forEach((card, i) => this.fillRow(this.now.children[i], card));
+    this.now.hidden = false;
+    if (changed) this.place();
+    if (wasHidden) this.extendHold(); // a card on a timer (the one for when you click her) stays while there's music to reach
+  }
+
+  nowRow(card, onPress) {
+    const row = document.createElement('div');
+    row.className = `panel__row${card.kind === 'video' ? ' is-video' : ''}`;
+    const kind = document.createElement('span'); // ♪ your music, ▣ a video or whatever else
+    kind.className = 'panel__kind';
+    kind.setAttribute('aria-hidden', 'true');
+    kind.textContent = card.kind === 'video' ? '▣' : '♪';
+    const eq = document.createElement('span'); // the bars that move while it plays
+    eq.className = 'panel__eq';
+    eq.setAttribute('aria-hidden', 'true');
+    eq.append(...[0, 1, 2, 3].map(() => document.createElement('i')));
+    const text = document.createElement('span');
+    text.className = 'panel__now-text';
+    const buttons = [['previous', '⏮\uFE0E'], ['toggle', card.playing ? '⏸\uFE0E' : '▶\uFE0E'], ['next', '⏭\uFE0E']].map(([id, label]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = id === 'toggle' ? 'panel__action is-primary' : 'panel__action';
+      button.textContent = label;
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onPress(id, row._card); // the song it shows now, which may not be the one it was made for
+      });
+      return button;
+    });
+    const art = document.createElement('img'); // the cover of the song, or the thumbnail of the video, when the player gives one
+    art.className = 'panel__art';
+    art.alt = '';
+    art.draggable = false;
+    art.hidden = true;
+    row.append(art, kind, eq, text, ...buttons);
+    return row;
+  }
+
+  fillRow(row, card) {
+    row._card = card;
+    const title = document.createElement('b');
+    title.textContent = card.title;
+    const text = row.querySelector('.panel__now-text');
+    text.replaceChildren(title, card.meta ? ` · ${card.meta}` : '');
+    text.title = [card.title, card.meta, card.appId].filter(Boolean).join(' · ');
+    row.classList.toggle('is-paused', !card.playing);
+    row._artKey = `${card.appId}|${card.title}`;
+    const art = row.querySelector('.panel__art');
+    if (art) {
+      if (card.art) {
+        if (art.src !== card.art) art.src = card.art;
+        art.hidden = false;
+      } else {
+        art.hidden = true; // (a new song: the old cover goes until its own arrives)
+      }
+    }
+  }
+
+  // The picture of a song that arrived after its row was drawn
+  setNowArt(key, src) {
+    for (const row of this.now.children) {
+      if (row._artKey !== key) continue;
+      const art = row.querySelector('.panel__art');
+      if (!art) continue;
+      art.src = src;
+      art.hidden = false;
+    }
+    this.place();
+  }
+
+  // A card that goes by itself waits longer: something under it is being used. Her chat never goes by itself.
+  extendHold(ms = 10000) {
+    if (!this.current?.hold) return;
+    clearTimeout(this.hideTimer);
+    this.hideTimer = setTimeout(() => this.hide(), ms);
+  }
+
+  // The now-playing card, changed in place as the song does: { line, quote, tag }, without a new message.
+  updateCard({ line, quote = '', tag = '' }) {
+    if (!this.current) return;
+    clearInterval(this.decodeTimer); // the first line may still be decoding in
+    Object.assign(this.current, { line, quote, tag });
+    this.line.textContent = line;
+    this.tag.textContent = tag;
+    this.quote.textContent = quote;
+    this.quote.hidden = !quote;
+    this.place();
   }
 
   // The quote under her line, changed in place (how far a download is), without a new message.
@@ -249,6 +895,107 @@ export class Panel {
     this.countTimer = setInterval(step, 1000 / 12);
   }
 
+  // The apps that match what you type, as a list under the words you type (like a search box's): [{ label, icon?, tag? }], and what to
+  // do with the one you pick. Each row: its icon (or its first letter until the icon arrives), its name, and what it is (a game...).
+  setSuggestions(items = [], onPick = null) {
+    this.suggest = { items, hot: -1, onPick };
+    this.suggestEl.replaceChildren(...items.map((it, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'panel__sug';
+      b.dataset.id = `sug-${i}`;
+      const ico = document.createElement('span');
+      ico.className = 'panel__sug-ico';
+      this.paintSuggestionIcon(ico, it);
+      const name = document.createElement('span');
+      name.className = 'panel__sug-name';
+      name.textContent = it.label;
+      b.append(ico, name);
+      if (it.tag) {
+        const tag = document.createElement('small');
+        tag.className = 'panel__sug-tag';
+        tag.textContent = it.tag;
+        b.append(tag);
+      }
+      b.addEventListener('mousedown', (e) => e.preventDefault()); // (the input keeps the keyboard)
+      b.addEventListener('mouseenter', () => this.hotSuggestion(i));
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.pickSuggestion(i);
+      });
+      return b;
+    }));
+    this.suggestEl.hidden = !items.length;
+    if (!this.el.hidden) this.place();
+  }
+
+  paintSuggestionIcon(ico, it) {
+    if (it.icon) {
+      const img = document.createElement('img');
+      img.src = it.icon;
+      img.alt = '';
+      img.draggable = false;
+      ico.replaceChildren(img);
+    } else {
+      ico.textContent = String(it.label || '?').trim().charAt(0).toUpperCase();
+    }
+  }
+
+  // An icon that arrived after the list was drawn: it goes onto its row (same list; a newer one has other rows)
+  setSuggestionIcon(i, icon) {
+    const it = this.suggest.items[i];
+    const ico = this.suggestEl.children[i]?.querySelector('.panel__sug-ico');
+    if (!it || !ico || !icon) return;
+    it.icon = icon;
+    this.paintSuggestionIcon(ico, it);
+  }
+
+  hotSuggestion(i) {
+    this.suggest.hot = i;
+    [...this.suggestEl.children].forEach((b, k) => b.classList.toggle('is-on', k === i));
+  }
+
+  moveSuggestion(step) {
+    const n = this.suggest.items.length;
+    if (!n) return;
+    this.suggest.hot = this.suggest.hot < 0 ? (step > 0 ? 0 : n - 1) : (this.suggest.hot + step + n) % n;
+    [...this.suggestEl.children].forEach((b, i) => b.classList.toggle('is-on', i === this.suggest.hot));
+  }
+
+  pickSuggestion(i) {
+    const it = this.suggest.items[i];
+    const run = this.suggest.onPick;
+    if (!it || !run) return;
+    this.setSuggestions([]);
+    run(it);
+  }
+
+  // Colours as squares with their hex: a press copies that one ({ hex, on, share }, onPick(hex))
+  setSwatches(colors = [], onPick = null) {
+    if (colors.length) this.setSuggestions([]);
+    this.swatchEl.replaceChildren(...colors.map((c) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'panel__sw';
+      b.style.setProperty('--c', c.hex);
+      b.style.setProperty('--on', c.on || '#000');
+      const hex = document.createElement('b');
+      hex.textContent = c.hex;
+      const pct = document.createElement('small');
+      pct.textContent = c.share >= 0.01 ? `${Math.round(c.share * 100)}%` : '';
+      b.append(hex, pct);
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onPick?.(c.hex);
+        hex.textContent = '✓';
+        setTimeout(() => { hex.textContent = c.hex; }, 900);
+      });
+      return b;
+    }));
+    this.swatchEl.hidden = !colors.length;
+    if (!this.el.hidden) this.place();
+  }
+
   renderActions(actions = [], onAction = null) {
     this.actions.replaceChildren(...actions.map(({ id, label, primary }) => {
       const button = document.createElement('button');
@@ -267,6 +1014,24 @@ export class Panel {
   }
 
   // New buttons on the message on screen (in a chat: the app she offers to close), or none.
+  // One more button beside the ones an answer already has (it keeps their callbacks), with its own handler.
+  addAction({ id, label, primary }, handler) {
+    if (!this.current || this.el.hidden) return;
+    this.current.actions = [...(this.current.actions || []), { id, label, primary }];
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = primary ? 'panel__action is-primary' : 'panel__action';
+    button.dataset.id = id;
+    button.textContent = label;
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handler();
+    });
+    this.actions.append(button);
+    this.actions.hidden = false;
+    this.place();
+  }
+
   setActions(actions, onAction) {
     if (!this.current) return;
     this.current.actions = actions;
@@ -277,13 +1042,31 @@ export class Panel {
   renderChat(chat) {
     this.el.classList.toggle('is-chat', Boolean(chat));
     this.line.classList.remove('is-streaming');
+    this.hideSessions();
+    // a chat as a chat: all of it in bubbles, her answer written into the last one
+    this.bubbles = Boolean(chat?.bubbles);
+    this.el.classList.toggle('has-bubbles', this.bubbles);
+    if (this.bubbles) this.setBubbles(chat.history || []);
+    else {
+      this.line = this.lineMain;
+      this.setThread([]);
+    }
+    this.setModes(chat?.modes || [], chat?.onMode);
     this.chatForm.hidden = !chat;
     this.note.hidden = !chat?.note;
+    this.chatReset.hidden = !chat?.onReset;
+    this.now.hidden = true; // chat.js fills it in a moment, if something plays
+    this.nowKey = '';
     if (!chat) return;
-    this.chatInput.type = chat.secret ? 'password' : 'text';
+    this.chatReset.disabled = false;
+    this.chatReset.textContent = '↻';
+    this.chatInput.classList.toggle('is-secret', Boolean(chat.secret)); // a key: dots
+    this.plus.hidden = !chat.onAttach || Boolean(chat.secret);
+    this.setChips([]);
     this.chatInput.placeholder = chat.placeholder;
     this.chatInput.setAttribute('aria-label', chat.placeholder);
     this.chatInput.disabled = false;
+    this.grow();
     this.chatSend.disabled = false;
     this.chatSend.textContent = chat.send;
     this.chatClose.setAttribute('aria-label', chat.close);
@@ -299,6 +1082,24 @@ export class Panel {
   // announcing the panel all over again.
   chatTurn({ quote, face }) {
     if (!this.current?.chat) return;
+    this.setSwatches([]);
+    if (this.bubbles && this.bubList) { // your message goes in as a bubble on your side, and a new one of hers waits under it
+      clearInterval(this.decodeTimer);
+      this.stopStream();
+      this.setFace(face);
+      if (this.liveRow?.hidden) this.liveRow.remove(); // the last one never got words
+      this.line.classList.remove('is-streaming');
+      if (quote) {
+        const mine = this.bubbleRow('user', quote);
+        if (!reducedMotion.matches) mine.classList.add('is-new'); // yours comes in from the right
+        this.bubList.append(mine);
+      }
+      this.stick = true;
+      this.newLive();
+      this.toBottom();
+      this.place();
+      return;
+    }
     clearInterval(this.decodeTimer);
     this.stopStream();
     this.setFace(face);
@@ -333,9 +1134,11 @@ export class Panel {
     this.streamShown += Math.min(behind, Math.max(2, Math.ceil(behind / 14)));
     this.streamAt = chars.slice(0, this.streamShown);
     const caughtUp = this.streamShown >= chars.length;
+    if (this.bubbles && chars.length) this.revealLive();
     if (caughtUp && this.streamDone) {
       this.stopStream();
       this.line.textContent = chars.join('');
+      if (this.bubbles) this.fillBubble(this.line, 'assistant', chars.join('')); // lists, code, bold
       this.line.classList.remove('is-streaming');
       this.glitchLine();
     } else {
@@ -348,6 +1151,7 @@ export class Panel {
       this.line.classList.add('is-streaming');
     }
     this.line.scrollTop = this.line.scrollHeight;
+    this.toBottom();
     this.place();
   }
 
@@ -370,7 +1174,16 @@ export class Panel {
   setChatBusy(busy) {
     this.chatInput.disabled = busy;
     this.chatSend.disabled = busy;
+    this.chatReset.disabled = busy;
     if (!busy && this.current?.chat) this.chatInput.focus();
+  }
+
+  // The ↻ button of a chat with Claude Code: how many answers its conversation has, and what it does.
+  setSession(turns, title) {
+    if (!this.current?.chat?.onReset) return;
+    this.chatReset.textContent = `↻ ${turns}`;
+    this.chatReset.title = title;
+    this.chatReset.setAttribute('aria-label', title);
   }
 
   // A button of the message on screen says something else now ("Copied").
@@ -484,6 +1297,7 @@ export class Panel {
 
   decode(text, kind) {
     clearInterval(this.decodeTimer);
+    if (this.bubbles && text) this.revealLive();
     if (reducedMotion.matches || !text) {
       this.line.textContent = text;
       return;

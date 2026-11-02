@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es" data-look="hud">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; media-src 'self' capri: blob:; connect-src 'self' capri:">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capri — Conversaciones</title>
+  <link rel="stylesheet" href="styles/chatwin.css">
+  <link rel="stylesheet" href="styles/chatwin-hud.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <header class="side__head">
+        <img class="side__face" src="../../assets/capri/capri-face.png" alt="">
+        <b>Capri</b>
+        <button id="new" class="btn btn--primary" type="button"></button>
+      </header>
+      <input id="find" class="side__find" type="search" spellcheck="false" autocomplete="off">
+      <nav id="list" class="side__list"></nav>
+      <footer id="engineNote" class="side__foot"></footer>
+    </aside>
+
+    <main class="main">
+      <header class="top">
+        <figure class="top__face"><img id="topFace" src="../../assets/capri/face-look.png" alt=""></figure>
+        <input id="title" class="top__title" type="text" maxlength="60" spellcheck="false">
+        <button id="designTab" class="btn btn--mode" type="button"></button>
+        <div class="top__engine">
+          <span id="engineLabel" class="top__label"></span>
+          <div id="engine" class="seg" role="group">
+            <button type="button" data-engine="local"></button>
+            <button type="button" data-engine="haiku">Haiku</button>
+            <button type="button" data-engine="sonnet">Sonnet</button>
+            <button type="button" data-engine="opus">Opus</button>
+          </div>
+          <label id="webWrap" class="top__web"><input id="web" type="checkbox"> <span id="webLabel"></span></label>
+        </div>
+      </header>
+
+      <section id="thread" class="thread" tabindex="0" aria-live="polite"></section>
+      <button id="jump" class="jump" type="button" hidden>↓</button>
+
+      <div id="chips" class="chips" hidden></div>
+      <form id="composer" class="composer" autocomplete="off">
+        <button id="plus" class="btn btn--square" type="button">+</button>
+        <button id="imageMode" class="btn btn--mode" type="button"></button>
+        <button id="mic" class="btn btn--square" type="button" aria-label="Hablarle a Capri" title="Hablarle a Capri">&#x1F399;&#xFE0E;</button>
+        <textarea id="input" class="composer__input" rows="2" maxlength="20000" spellcheck="true"></textarea>
+        <button id="stop" class="btn btn--stop" type="button" hidden></button>
+        <button id="send" class="btn btn--primary" type="submit"></button>
+      </form>
+      <p id="hint" class="hint"></p>
+    </main>
+  </div>
+  <script type="module" src="js/chatwin.js"></script>
+</body>
+</html>

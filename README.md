@@ -188,11 +188,27 @@ She only catches the mouse on her actual body (pixel-precise): the rest of the s
 She speaks **French, English, Spanish, Brazilian Portuguese and Russian**, and picks the language of your system on her
 own. You can choose another one in her menu.
 
+## What this version adds
+
+All of it is optional, local-first and asks (**Allow / Deny** cards) before it touches anything.
+
+- **Dictation anywhere**: hold the dictation keys (`Ctrl+Alt+Space` by default, `dictateKey` in her config), talk, let go, and the text is typed where your cursor is. Change it if another app uses that shortcut.
+- **Downloads scan**: a new file in Downloads is checked with Windows Defender; for a suspicious one she can open its hash on VirusTotal in your browser (the file itself is never uploaded).
+- **Picture tools**: drop an image on her to convert, resize or compress it, or take its background off (local, with rembg).
+- **PC alerts**: an almost full drive, a hot processor (when Windows reports it), the laptop battery and Bluetooth keyboards or mice. She speaks only when something crosses a line (`hwAlerts: false` turns it off).
+- **Incremental backup**: "capri, respalda mis archivos" copies only what changed to a disk, USB or Drive folder. It never deletes anything.
+- **Performance mode**: when Illustrator or a game is in front, her big local model leaves memory and a small one takes over (`heavyModel`, default `gemma3:4b` if installed).
+- **One model at a time**: only the model she is using stays in memory, and it leaves 2 minutes after the last answer (`IDLE_KEEP` in `src/main/ollama.js`).
+- **League of Legends mode** (off unless a match is on): recaps and safe advice that follows Riot's rules (see below).
+- **Messages from her card**: new WhatsApp/Discord messages show as a card with a sound and no voice by default; replying moves the chat app out of sight while she types (`msgStealth`).
+- **Where she rests**: sitting on the taskbar, left or right (her menu, "When she rests").
+- **Install a local model by voice**: "capri, instala qwen3:8b" (asks first, downloads from Ollama, does not switch your model).
+
 ## Install
 
 ### Quick start (Windows, no coding)
 
-1. Download **`Capri-Setup-x.y.z.exe`** from the [latest release](https://github.com/mochiiwuff/capri-desktop/releases/latest)
+1. Download **`Capri-Setup-x.y.z.exe`** from the [latest release](https://github.com/dodoelmapache/capri-desktop/releases/latest)
    and run it. It installs for your user only (no admin rights), adds a desktop shortcut and starts Capri.
    You don't need Node.js or anything else.
 2. The installer isn't signed (a code-signing certificate costs money), so Windows SmartScreen may say
@@ -200,6 +216,8 @@ own. You can choose another one in her menu.
 3. Capri shows up and introduces herself. Click **Plug me in**: that connects her to Claude Code.
 4. Close Claude Code completely and open it again (it reads its hooks when a session starts). As soon as Claude does
    something, she tells you **"I can see Claude!"**: that's how you know it worked.
+
+Her language is English by default: change it in her menu, **Language** (Español, Français, Português, Русский, or follow your system).
 
 Her menu: **right-click her**. It's also on her tray icon, which Windows 11 often hides behind the **^** next to the clock.
 
@@ -217,7 +235,7 @@ asleep. You can just leave her there.
 You need [Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
-git clone https://github.com/mochiiwuff/capri-desktop.git
+git clone https://github.com/dodoelmapache/capri-desktop.git
 cd capri-desktop
 npm install
 npm start
@@ -317,7 +335,21 @@ named like this (`.mp3`, `.wav`, `.ogg` or `.m4a`):
 
 ## What leaves your machine
 
-Nothing. The hook only keeps what the display needs (tool name, file path, command, the start of your prompt,
+By default, almost nothing. The things that DO leave, and only when you turn them on or use them:
+
+- **Your voice** (hands-free and dictation): the audio of what you say goes to a speech service (Groq, else OpenAI) unless
+  you install the local Whisper (`capri, instala whisper`, or `tools/install-whisper-local.ps1`), which keeps it on your PC.
+- **Cloud chat models** (Groq, Gemini, OpenRouter, OpenAI, Mistral, DeepSeek, Pollinations) receive what you send her
+  when you pick one of them as her brain. With Ollama, nothing leaves.
+- **Claude**: when you use her Claude mode, what you send goes to Claude through Claude Code, as it does there.
+- **Downloads check**: Windows Defender scans new files on your PC. "VirusTotal" only opens the page of the file's
+  SHA-256 hash in your browser: the file is never uploaded.
+- **Installers** (local Whisper, rembg): they download from GitHub and Hugging Face once, on your OK.
+- **Voices**: the free neural voices (Edge) and ElevenLabs, if you choose it, receive the text she says.
+- **Backups, alerts, picture tools, notifications**: all local. Her message cards read what Windows keeps of
+  WhatsApp/Discord/Telegram notifications on your PC; nothing is sent anywhere.
+
+The rest of this section is about the Claude Code hook. It only keeps what the display needs (tool name, file path, command, the start of your prompt,
 Claude's last message up to 6,000 characters so she can show it to you, all truncated) and sends it to `127.0.0.1` only.
 Your file contents are never sent: for a write, only its size goes through.
 
@@ -412,12 +444,24 @@ To hack on it: `npm run dev` turns on debug routes on the bridge (`/debug/captur
 over Capri's window, without touching the real one, `/debug/type` types in her chat).
 `npm run dist` builds the Windows installer in `dist/`.
 
+## Riot Games
+
+Her optional League of Legends mode is not endorsed by Riot Games and does not reflect the views or opinions of Riot Games
+or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties
+are trademarks or registered trademarks of Riot Games, Inc. It reads only the game's own local match data (never its memory),
+shows no timers, cooldowns or build advice during a match, and only comments on what already happened and sums the match up at the end.
+
 ## Credits and rights
+
+This version is built on top of [capri-desktop by mochiiwuff](https://github.com/mochiiwuff/capri-desktop): the base (her body, the hooks, the overlay, most of the first 0.4 features) comes from that project, and this repo keeps its history and its MIT license. The additions (voice and orders, dictation, scans, backup, performance and League modes, message cards and more) were built on top of it. It starts from **0.4.0, which was MIT-licensed**, and stays under the **MIT License** (see `LICENSE`). Later versions of the original project (0.4.4 onward) moved to a different license (PolyForm Noncommercial) and **nothing from them is included here**, so this project can be used and reused freely. This is an independent line: its version numbers (`0.4.0-dodo.x`) are not the original's.
+
 
 Capri / Project Capricorn, Cyberpunk and Cyberpunk: Edgerunners belong to CD PROJEKT RED, Studio Trigger and Netflix.
 This is a non-commercial fan project with no affiliation. The character images in `assets/capri/` come from frames of
 the show, a fan-made cut-out and fan art (her intro's close-ups); they are **not** covered by the code's MIT license.
 If a rights holder wants them removed, open an issue.
+
+**Not MIT:** the sprite sheets in `assets/sprites/` come from [lachydotmcg/capri-desktop](https://github.com/lachydotmcg/capri-desktop) and stay under the PolyForm Noncommercial License 1.0.0 (personal, non-commercial use; see `assets/sprites/NOTICE.txt`). The MIT License covers the code of this repo only, not those sprites and not the show artwork.
 
 Fonts: Chakra Petch and JetBrains Mono, under the SIL Open Font License, via Fontsource.
 

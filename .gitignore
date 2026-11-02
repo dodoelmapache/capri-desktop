@@ -7,3 +7,29 @@ Thumbs.db
 
 # local debug captures
 captures/
+
+# her own working copies and builds: never published
+_backup_*/
+_versions/
+_to_delete/
+_logs/
+_android/*.apk
+*.apk
+config.json
+sessions.json
+.env
+.env.*
+*.pem
+*.key
+
+# editor / rescue copies and local diagnostics
+*.bak
+*.bak_*
+procesos.csv
+inicio.csv
+limpiar-inicio.ps1
+deshacer-inicio.ps1
+limpiar-inicio-admin.ps1
+deshacer-inicio-admin.ps1
+cpu.csv
+_android/

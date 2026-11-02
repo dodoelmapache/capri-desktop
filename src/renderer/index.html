@@ -3,9 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; media-src 'self' capri: blob:; connect-src 'self' capri:">
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: capri:; font-src 'self'; media-src 'self' capri: blob:; connect-src 'self' capri:">
   <title>Capri</title>
   <link rel="stylesheet" href="styles/capri.css">
+  <link rel="stylesheet" href="styles/hud.css">
+  <link rel="stylesheet" href="styles/clips.css">
+  <link rel="stylesheet" href="styles/player.css">
+  <link rel="stylesheet" href="styles/recbar.css">
+  <link rel="stylesheet" href="styles/hearpill.css">
 </head>
 <body>
   <div id="capri" class="capri">
@@ -30,6 +35,7 @@
             <span class="panel__state"></span>
           </header>
           <p class="panel__line"></p>
+          <div class="panel__thread" hidden></div>
           <p class="panel__quote" hidden></p>
           <div class="panel__progress" hidden><span class="panel__bar"></span></div>
           <div class="panel__reply" hidden></div>
@@ -37,11 +43,17 @@
           <p class="panel__summary" hidden></p>
           <ol class="panel__log" hidden></ol>
           <div class="panel__actions" hidden></div>
+          <div class="panel__sessions" hidden></div>
+          <div class="panel__modes" hidden></div>
+          <div class="panel__chips" hidden></div>
           <form class="panel__chat" hidden autocomplete="off">
-            <input class="panel__input" type="text" maxlength="500" spellcheck="false">
+            <button class="panel__action panel__plus" type="button" hidden>+</button>
+            <textarea class="panel__input" rows="2" maxlength="6000" spellcheck="false"></textarea>
             <button class="panel__action is-primary panel__send" type="submit"></button>
+            <button class="panel__action panel__reset" type="button" hidden>↻</button>
             <button class="panel__action panel__close" type="button">✕</button>
           </form>
+          <div class="panel__now" hidden></div>
           <p class="panel__note" hidden></p>
         </div>
       </div>

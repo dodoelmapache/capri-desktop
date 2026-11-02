@@ -28,7 +28,10 @@ const EVENTS = [
   'SessionEnd',
 ];
 
-const MARK = 'capri-hook.js';
+const MARKS = ['capri-hook.js', 'capri-permission-hook.js'];
+
+// This one waits for your answer on her card, so it isn't async (300 s, then the terminal asks).
+const PERMISSION = { event: 'PermissionRequest', script: 'capri-permission-hook.js', timeout: 300 };
 
 function settingsPath() {
   const base = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
@@ -45,8 +48,8 @@ function hasNode() {
 
 // In the installed app (the .exe) the hook sits next to the app archive (asarUnpack), where
 // node can read it. With no node on the machine, Capri's own executable runs it as node.
-function hookCommand() {
-  const script = path.resolve(__dirname, '..', 'hooks', 'capri-hook.js')
+function hookCommand(name = 'capri-hook.js') {
+  const script = path.resolve(__dirname, '..', 'hooks', name)
     .replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`)
     .replace(/\\/g, '/');
   if (process.versions.electron && !hasNode()) {
@@ -68,7 +71,7 @@ function readSettings(file) {
 }
 
 function isCapriGroup(group) {
-  return Array.isArray(group?.hooks) && group.hooks.some((h) => String(h.command || '').includes(MARK));
+  return Array.isArray(group?.hooks) && group.hooks.some((h) => MARKS.some((mark) => String(h.command || '').includes(mark)));
 }
 
 function strip(settings) {
@@ -105,8 +108,12 @@ function install() {
       hooks: [{ type: 'command', command, async: true, timeout: 10 }],
     });
   }
+  settings.hooks[PERMISSION.event] = settings.hooks[PERMISSION.event] || [];
+  settings.hooks[PERMISSION.event].push({
+    hooks: [{ type: 'command', command: hookCommand(PERMISSION.script), timeout: PERMISSION.timeout }],
+  });
   if (JSON.stringify(settings) !== before) write(file, settings); // already up to date: no backup spam
-  return { file, command, events: EVENTS.length };
+  return { file, command, events: EVENTS.length + 1 };
 }
 
 function uninstall() {

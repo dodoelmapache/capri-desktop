@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'">
+  <title>Capri scanner</title>
+  <link rel="stylesheet" href="styles/scanner.css">
+</head>
+<body>
+  <main class="frame" id="frame">
+    <header class="bar">
+      <span class="dot"></span>
+      <span class="title">CAPRI // SCANNER</span>
+      <button class="btn" id="shot" type="button" hidden></button>
+      <button class="btn" id="scan" type="button"></button>
+      <button class="btn" id="palette" type="button"></button>
+      <span class="state" id="state"></span>
+      <button class="x" id="close" type="button" aria-label="close">&#x2715;</button>
+    </header>
+    <i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i>
+    <div class="grip" id="grip"></div>
+  </main>
+  <script type="module" src="js/scanner.js"></script>
+</body>
+</html>

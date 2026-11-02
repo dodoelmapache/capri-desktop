@@ -1,6 +1,7 @@
 MIT License
 
 Copyright (c) 2026 Capri Desktop contributors
+Copyright (c) 2026 Dodo (additions since 0.4.0)
 
 This license covers the source code of this repository. It does not cover the
 character artwork in assets/capri/ and docs/, which belongs to its respective
@@ -23,3 +24,5 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Exception: the files in assets/sprites/ are NOT covered by this license. They are under the PolyForm Noncommercial License 1.0.0 (see assets/sprites/NOTICE.txt). The character artwork in assets/capri/ and docs/ belongs to its rights holders.

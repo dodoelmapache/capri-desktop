@@ -1,0 +1,83 @@
+/* the small "she is listening" pill (hearpill.js) */
+.hearpill {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--ink);
+  color: var(--paper);
+  border-left: 3px solid var(--green);
+  clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
+  filter: drop-shadow(3px 3px 0 var(--violet));
+  font: 600 10px var(--font-mono);
+  letter-spacing: 0.1em;
+  pointer-events: none;
+  will-change: transform;
+  animation: hearpill-in 160ms var(--ease-out);
+}
+
+.hearpill[hidden] {
+  display: none;
+}
+
+.hearpill[data-kind='thinking'] {
+  border-left-color: var(--violet);
+}
+
+.hearpill__bars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 14px;
+}
+
+.hearpill__bars i {
+  width: 2px;
+  height: 100%;
+  background: var(--green);
+  transform-origin: center;
+  animation: hearpill-bar 0.9s ease-in-out infinite;
+}
+
+.hearpill__bars i:nth-child(2) { animation-delay: 0.15s; }
+.hearpill__bars i:nth-child(3) { animation-delay: 0.3s; }
+.hearpill__bars i:nth-child(4) { animation-delay: 0.45s; }
+
+.hearpill[data-kind='thinking'] .hearpill__bars i {
+  background: var(--violet);
+  animation-duration: 1.6s;
+}
+
+.hearpill__mic svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+
+.hearpill[data-kind='speaking'] {
+  border-left-color: var(--red, var(--violet));
+}
+
+.hearpill[data-kind='speaking'] .hearpill__bars i {
+  background: var(--red, var(--violet));
+  animation-duration: 0.6s;
+}
+
+@keyframes hearpill-bar {
+  0%, 100% { transform: scaleY(0.25); }
+  50% { transform: scaleY(1); }
+}
+
+@keyframes hearpill-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hearpill, .hearpill__bars i { animation: none; }
+}

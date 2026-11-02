@@ -1,0 +1,459 @@
+/* her player card (player.js): a card of its own for what plays, under her main card or loose where you put it */
+.player {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  width: 350px;
+  color: var(--paper);
+  filter: drop-shadow(5px 5px 0 var(--violet));
+  will-change: transform;
+}
+
+.player[hidden] {
+  display: none;
+}
+
+.player.is-in {
+  animation: player-in 220ms steps(3, jump-end) both;
+}
+
+@keyframes player-in {
+  0% { clip-path: inset(49% 50% 49% 50%); }
+  40% { clip-path: inset(49% -20px 49% -20px); }
+  100% { clip-path: inset(-20px -20px -40px -20px); }
+}
+
+.player.is-dragging {
+  filter: drop-shadow(8px 8px 0 var(--violet));
+  cursor: grabbing;
+}
+
+.player__plate {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 14px 14px;
+  background: var(--ink);
+  clip-path: polygon(0 12px, 12px 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+}
+
+.player__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: grab;
+  user-select: none;
+}
+
+.player__label {
+  color: var(--paper);
+  font-weight: 600;
+}
+
+.player__app {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--paper-3);
+}
+
+.player__app:not(:empty)::before {
+  content: '/ ';
+  color: var(--violet);
+}
+
+.player__btn {
+  appearance: none;
+  border: 0;
+  padding: 5px 9px 4px;
+  background: var(--ink-2);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  transition: background 150ms var(--ease-out);
+}
+
+.player__btn:hover {
+  background: color-mix(in oklab, var(--violet) 60%, var(--ink-2));
+}
+
+.player__pin,
+.player__x {
+  font-size: 9px;
+  padding: 3px 7px 2px;
+}
+
+.player__body {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+}
+
+.player__art {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  background: var(--violet);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+.player.is-video .player__art {
+  background: var(--green);
+}
+
+.player__art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.player__art img[hidden],
+.player__note[hidden] {
+  display: none;
+}
+
+.player__note {
+  font: 700 34px var(--font-display);
+  color: var(--ink);
+}
+
+.player__info {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.player__title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font: 700 16px/1.2 var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.player__artist {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--paper-2);
+  font: 12px var(--font-mono);
+}
+
+.player__time {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 6px;
+}
+
+.player__track {
+  position: relative;
+  height: 5px;
+  background: var(--ink-2);
+  box-shadow: 2px 2px 0 var(--violet);
+}
+
+.player__track[hidden] {
+  display: none;
+}
+
+.player__track i {
+  position: absolute;
+  inset: 0;
+  background: var(--green);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 500ms linear;
+}
+
+.player__clock {
+  color: var(--paper-3);
+  font: 10px var(--font-mono);
+}
+
+.player.is-paused .player__track i {
+  background: var(--paper-3);
+}
+
+.player__ctl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.player__ctl .player__btn {
+  padding: 7px 12px 6px;
+  font-size: 14px;
+}
+
+.player__ctl .player__btn.is-main {
+  background: var(--green);
+  color: var(--ink);
+  padding-inline: 18px;
+}
+
+.player__ctl .player__btn.is-main:hover {
+  filter: brightness(1.12);
+}
+
+.player.is-away {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* her main card is big: the player is only a slim bar, title and ⏮ ⏯ ⏭ */
+.player.is-compact .player__art,
+.player.is-compact .player__time,
+.player.is-compact .player__others,
+.player.is-compact .player__status,
+.player.is-compact .player__artist,
+.player.is-compact .player__shuffle,
+.player.is-compact [data-id='voldown'],
+.player.is-compact [data-id='volup'],
+.player.is-compact [data-id='pauseother'],
+.player.is-compact .player__switch {
+  display: none;
+}
+
+.player.is-compact .player__body {
+  padding-block: 4px;
+}
+
+.player.is-compact .player__title {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player.is-compact .player__info {
+  min-width: 0;
+}
+
+.player.is-compact .player__ctl {
+  justify-content: center;
+}
+
+.player__others {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed color-mix(in oklab, var(--paper-3) 60%, transparent);
+}
+
+.player__others[hidden] {
+  display: none;
+}
+
+.player__row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 6px;
+  border-left: 3px solid var(--paper-3);
+  background: color-mix(in oklab, var(--ink-2) 80%, transparent);
+}
+
+.player__row.is-on {
+  border-left-color: var(--green);
+}
+
+.player__rname {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--paper);
+  text-align: left;
+  cursor: pointer;
+}
+
+.player__rname small {
+  color: var(--paper-3);
+  font: 600 9px var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.player__rname b {
+  max-width: 100%;
+  overflow: hidden;
+  font: 600 12px var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player__rbtn {
+  padding: 5px 8px 4px;
+  font-size: 13px;
+}
+
+.player__gap {
+  flex: 1;
+}
+
+.player__switch[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player.is-in { animation: none; }
+  .player__track i { transition: none; }
+}
+
+/* the HUD look, when it is on: the same details as her cards */
+html[data-look='hud'] .player__bar {
+  position: relative;
+}
+
+html[data-look='hud'] .player__bar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, var(--red) 0 34%, transparent 34%) 0 0 / 100% 2px no-repeat,
+    linear-gradient(90deg, color-mix(in oklab, var(--red) 38%, transparent) 0 100%) 0 1px / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, var(--red) 0 1px, transparent 1px 4px) 100% 0 / 26px 2px no-repeat;
+}
+
+html[data-look='hud'] .player__plate {
+  background:
+    radial-gradient(120% 70% at 50% -18%, color-mix(in oklab, var(--red) 15%, transparent), transparent 62%),
+    repeating-radial-gradient(circle at 92% 118%, transparent 0 15px, rgba(255, 255, 255, 0.028) 15px 16px),
+    var(--ink);
+}
+
+/* ---- the bar of how far it is: its own row, the time gone and what is left at the ends, a knob where it is, and a press goes to that point ---- */
+.player__time {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  margin-top: 0;
+}
+
+.player__time[hidden] {
+  display: none;
+}
+
+.player__now,
+.player__left {
+  flex: none;
+  min-width: 34px;
+  color: var(--paper-2);
+  font: 600 11px var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.player__left {
+  text-align: right;
+  color: var(--paper-3);
+}
+
+.player__track {
+  position: relative;
+  flex: 1;
+  height: 9px;
+  margin: 3px 0;
+  background: var(--ink-2);
+  box-shadow: 2px 2px 0 var(--violet);
+  cursor: pointer;
+}
+
+.player__track::before { /* a taller place to press, without a taller bar */
+  content: '';
+  position: absolute;
+  inset: -7px 0;
+}
+
+.player__track i {
+  transition: transform 450ms linear;
+}
+
+.player__track b {
+  position: absolute;
+  top: -3px;
+  width: 4px;
+  height: 15px;
+  margin-left: -2px;
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--ink);
+  pointer-events: none;
+}
+
+.player__track.is-paused i {
+  background: var(--paper-3);
+}
+
+.player__status {
+  color: var(--red);
+  font: 600 10px var(--font-mono);
+  letter-spacing: 0.14em;
+}
+
+.player__status:empty {
+  display: none;
+}
+
+.player__shuffle {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.player__shuffle[hidden] {
+  display: none;
+}
+
+.player__ctl .player__shuffle {
+  padding: 7px 10px 6px;
+}
+
+/* the shuffle button: a glyph, like the volume ones; green for a moment when the player says it is on */
+.player__ctl {
+  flex-wrap: wrap;
+}
+
+.player__ctl .player__shuffle {
+  min-width: 40px;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.player__shuffle.is-on {
+  background: var(--green);
+  color: var(--ink);
+}

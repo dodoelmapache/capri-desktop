@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'">
+  <title>Capri</title>
+  <link rel="stylesheet" href="styles/permission.css">
+</head>
+<body>
+  <main class="card">
+    <header class="card__meta">
+      <img class="card__face" src="../../assets/capri/capri-face.png" alt="">
+      <span class="card__who">Capri</span>
+      <span class="card__title"></span>
+    </header>
+    <p class="card__tool"></p>
+    <pre class="card__what"></pre>
+    <p class="card__where"></p>
+    <footer class="card__actions">
+      <button class="btn is-deny" data-answer="deny"></button>
+      <button class="btn is-always" data-answer="always" hidden></button>
+      <button class="btn is-allow" data-answer="allow"></button>
+    </footer>
+  </main>
+  <script type="module" src="js/permission.js"></script>
+</body>
+</html>

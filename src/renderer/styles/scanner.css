@@ -1,0 +1,24 @@
+html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; user-select: none; }
+:root { --teal: #19f0c0; --red: #ff2d55; --ink: rgba(10, 14, 24, 0.94); }
+.frame { position: absolute; inset: 0; box-sizing: border-box; border: 2px solid var(--teal); background: rgba(25, 240, 192, 0.025);
+  box-shadow: 0 0 14px rgba(25, 240, 192, 0.45), inset 0 0 0 1px rgba(255, 45, 85, 0.35); font: 600 11px/1 'Chakra Petch', 'Consolas', monospace; }
+.frame.is-busy { border-color: var(--red); animation: pulse 0.9s ease-in-out infinite alternate; }
+@keyframes pulse { from { box-shadow: 0 0 6px rgba(255, 45, 85, 0.4); } to { box-shadow: 0 0 20px rgba(255, 45, 85, 0.85); } }
+.bar { height: 34px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 8px; background: var(--ink);
+  color: var(--teal); letter-spacing: 0.08em; -webkit-app-region: drag; }
+.dot { width: 8px; height: 8px; background: var(--red); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn, .x { -webkit-app-region: no-drag; cursor: pointer; font: inherit; color: var(--teal); background: rgba(25, 240, 192, 0.1);
+  border: 1px solid var(--teal); padding: 5px 10px; letter-spacing: 0.1em; }
+.btn:hover { background: var(--teal); color: #05121a; }
+.btn:disabled { opacity: 0.45; cursor: default; background: transparent; color: var(--teal); }
+.x { border-color: var(--red); color: var(--red); background: transparent; padding: 5px 8px; }
+.x:hover { background: var(--red); color: #fff; }
+.state { color: var(--red); min-width: 70px; text-align: right; }
+.c { position: absolute; width: 18px; height: 18px; pointer-events: none; border: 0 solid var(--red); }
+.tl { top: 34px; left: -2px; border-left-width: 4px; border-top-width: 4px; }
+.tr { top: 34px; right: -2px; border-right-width: 4px; border-top-width: 4px; }
+.bl { bottom: -2px; left: -2px; border-left-width: 4px; border-bottom-width: 4px; }
+.br { bottom: -2px; right: -2px; border-right-width: 4px; border-bottom-width: 4px; }
+.grip { position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; cursor: nwse-resize; -webkit-app-region: no-drag;
+  background: linear-gradient(135deg, transparent 55%, var(--teal) 55%, var(--teal) 62%, transparent 62%, transparent 74%, var(--teal) 74%, var(--teal) 81%, transparent 81%); }

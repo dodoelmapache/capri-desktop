@@ -8,7 +8,7 @@ import { rand, pick } from './util.js';
 const BLIP_NOTES = [62, 65, 67, 69, 72, 74, 77, 79];
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
-export const CUES = ['teleport-out', 'teleport-in', 'done', 'alert', 'error', 'hello', 'blip', 'tick', 'star', 'land', 'rise', 'bolt', 'charge', 'possess'];
+export const CUES = ['teleport-out', 'teleport-in', 'done', 'alert', 'error', 'hello', 'blip', 'tick', 'star', 'land', 'rise', 'bolt', 'charge', 'possess', 'kill', 'streak', 'multi', 'death', 'warn', 'objective', 'item', 'win', 'lose', 'boom', 'giggle'];
 
 export class Voice {
   constructor() {
@@ -81,15 +81,39 @@ export class Voice {
       error: () => this.error(),
       hello: () => this.hello(),
       blip: () => this.blip(opts.mood),
-      tick: () => this.tick(),
+      tick: () => this.tick(opts.gain),
       star: () => this.star(),
       land: () => this.land(),
       rise: () => this.rise(),
       bolt: () => this.bolt(opts.soft),
       charge: () => this.charge(),
       possess: () => this.possess(),
+      kill: () => this.kill(),
+      streak: () => this.streak(),
+      multi: () => this.multi(),
+      death: () => this.death(),
+      warn: () => this.warn(),
+      objective: () => this.objective(),
+      item: () => this.item(),
+      win: () => this.win(),
+      lose: () => this.lose(),
+      boom: () => this.boom(),
+      giggle: () => this.giggle(),
     }[cue];
     fn?.();
+  }
+
+  // a cue at a share (0-1) of her usual volume: for her game remarks (the master volume comes back a moment later)
+  playLevel(cue, level = 0.5) {
+    if (this.muted) return;
+    this.ensure();
+    const k = Math.min(1, Math.max(0.05, Number(level) || 0.5));
+    if (this.master) this.master.gain.value = this.volume * k;
+    this.scaled = true;
+    this.play(cue);
+    this.scaled = false;
+    clearTimeout(this.levelTimer);
+    this.levelTimer = setTimeout(() => { if (this.master) this.master.gain.value = this.volume; }, 2200);
   }
 
   makeNoise() {
@@ -158,9 +182,10 @@ export class Voice {
     this.osc('square', f * 0.501, t + 0.008, 0.03, 0.018);   // an octave down, slightly off
   }
 
-  tick() {
+  tick(gain = 1) {
     const t = this.ctx.currentTime;
-    this.noiseBurst(t, 0.03, 0.06, 3000, 9000, 8);
+    this.noiseBurst(t, 0.03, 0.06 * gain, 3000, 9000, 8);
+    if (gain > 1) this.osc('triangle', 1500, t, 0.025, 0.04); // a button pressed: a small click with a body to it
   }
 
   // red lightning: a buzz under a crackle of tiny bursts (soft: the small hacking sparks)
@@ -251,6 +276,110 @@ export class Voice {
       this.osc('square', 988, t + r * 0.28, 0.09, 0.07);
       this.osc('square', 740, t + r * 0.28 + 0.11, 0.11, 0.07);
     }
+  }
+
+  // BOOM: a big impact for the big moments (a heavy job of Claude's done, a pentakill): a deep drop, a thump you can hear on small speakers too,
+  // the crack and rush of noise, a rumble that dies away and some debris falling
+  boom() {
+    const t = this.ctx.currentTime;
+    const k = this.scaled ? 1 : (this.boomLevel ?? 0.5); // (its own volume, config boomVol; from a game cue it already comes scaled)
+    const sub = this.osc('sine', 120, t, 1.2, 0.34 * k);
+    sub.frequency.exponentialRampToValueAtTime(32, t + 1);
+    const thump = this.osc('triangle', 190, t, 0.45, 0.24 * k);
+    thump.frequency.exponentialRampToValueAtTime(52, t + 0.35);
+    this.noiseBurst(t, 0.5, 0.26 * k, 2200, 110, 0.8);
+    this.noiseBurst(t + 0.06, 1.2, 0.13 * k, 420, 55, 0.7);
+    for (let i = 0; i < 7; i++) this.noiseBurst(t + 0.3 + i * 0.09, 0.05, 0.04 * k, rand(1500, 4500), 900, 6);
+  }
+
+  // a little giggle: four quick, soft, high notes that go up and down, a different one each time
+  giggle() {
+    const t = this.ctx.currentTime;
+    const base = pick([79, 81, 84]);
+    const run = pick([[0, 4, 2, 5], [0, 3, 0, 4], [2, 5, 3, 7]]);
+    run.forEach((step, i) => {
+      const at = t + i * 0.085 + (i > 1 ? 0.02 : 0);
+      const o = this.osc('triangle', midi(base + step), at, 0.09, 0.05);
+      o.frequency.exponentialRampToValueAtTime(midi(base + step + 2), at + 0.07);
+    });
+    this.noiseBurst(t + 0.02, 0.2, 0.012, 7000, 9000, 6);
+  }
+
+  // --- her game cues: electronic and low, like a HUD ---
+  // a kill: a short hit and a rising two-note blip
+  kill() {
+    const t = this.ctx.currentTime;
+    this.osc('square', midi(72), t, 0.07, 0.09);
+    this.osc('square', midi(79), t + 0.07, 0.12, 0.09);
+    this.noiseBurst(t, 0.05, 0.1, 3000, 800, 3);
+  }
+
+  // a streak: a bright rising run
+  streak() {
+    const t = this.ctx.currentTime;
+    [67, 71, 74, 79, 83].forEach((n, i) => {
+      this.osc('triangle', midi(n + 12), t + i * 0.06, 0.2, 0.09);
+      this.osc('square', midi(n), t + i * 0.06, 0.09, 0.04);
+    });
+    this.noiseBurst(t + 0.3, 0.25, 0.04, 6000, 11000, 5);
+  }
+
+  // a multikill or an ace: a big hit with a shimmer
+  multi() {
+    const t = this.ctx.currentTime;
+    const o = this.osc('sawtooth', 220, t, 0.35, 0.16);
+    o.frequency.exponentialRampToValueAtTime(70, t + 0.3);
+    this.noiseBurst(t, 0.3, 0.14, 2500, 300, 1.2);
+    [76, 83, 88].forEach((n, i) => this.osc('triangle', midi(n), t + 0.12 + i * 0.07, 0.4, 0.07));
+  }
+
+  // a death or a bad turn: low and falling
+  death() {
+    const t = this.ctx.currentTime;
+    const o = this.osc('triangle', 180, t, 0.5, 0.2);
+    o.frequency.exponentialRampToValueAtTime(40, t + 0.45);
+    this.noiseBurst(t, 0.18, 0.06, 700, 150, 1.5);
+  }
+
+  // a warning (heal, armor, a rival ahead): two short mid beeps, softer than the alert
+  warn() {
+    const t = this.ctx.currentTime;
+    this.osc('square', 660, t, 0.08, 0.055);
+    this.osc('square', 660, t + 0.14, 0.08, 0.055);
+    this.osc('sine', 330, t + 0.28, 0.2, 0.06);
+  }
+
+  // an objective (a turret, the dragon, the baron): a low double hit
+  objective() {
+    const t = this.ctx.currentTime;
+    this.osc('square', midi(45), t, 0.18, 0.1);
+    this.osc('square', midi(52), t + 0.16, 0.3, 0.1);
+    this.noiseBurst(t, 0.14, 0.07, 1200, 200, 1.4);
+  }
+
+  // an item: a small coin of two pings
+  item() {
+    const t = this.ctx.currentTime;
+    this.osc('sine', midi(88), t, 0.12, 0.07);
+    this.osc('sine', midi(95), t + 0.07, 0.35, 0.06);
+  }
+
+  // victory: a rising chord
+  win() {
+    const t = this.ctx.currentTime;
+    [60, 64, 67, 72].forEach((n, i) => {
+      this.osc('triangle', midi(n + 12), t + i * 0.1, 0.7, 0.09);
+      this.osc('square', midi(n), t + i * 0.1, 0.25, 0.035);
+    });
+    this.noiseBurst(t + 0.4, 0.5, 0.04, 7000, 12000, 5);
+  }
+
+  // defeat: a falling minor line
+  lose() {
+    const t = this.ctx.currentTime;
+    [67, 63, 58].forEach((n, i) => this.osc('triangle', midi(n), t + i * 0.18, 0.5, 0.11));
+    const o = this.osc('sawtooth', 90, t + 0.5, 0.6, 0.08);
+    o.frequency.exponentialRampToValueAtTime(45, t + 1);
   }
 
   error() {

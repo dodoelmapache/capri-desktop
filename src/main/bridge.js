@@ -37,7 +37,7 @@ function readJson(req) {
   });
 }
 
-function createBridge({ port, onEvent, onDebug }) {
+function createBridge({ port, onEvent, onPermission, onDebug }) {
   const server = http.createServer(async (req, res) => {
     // Browsers always send an Origin header on cross-site requests; hooks never do.
     // Refusing those keeps random web pages from puppeting Capri.
@@ -57,6 +57,21 @@ function createBridge({ port, onEvent, onDebug }) {
         }
         onEvent(evt);
         return send(res, 200, { ok: true });
+      } catch (err) {
+        return send(res, 400, { ok: false, error: err.message });
+      }
+    }
+
+    // The permission hook waits here until you answer on her card (or it gives up and hangs up).
+    if (onPermission && req.method === 'POST' && url.pathname === '/permission') {
+      try {
+        const evt = await readJson(req);
+        if (!evt || typeof evt !== 'object') return send(res, 400, { ok: false });
+        const gone = new AbortController();
+        res.on('close', () => gone.abort());
+        const answer = await onPermission(evt, gone.signal);
+        if (!res.writableEnded && !res.destroyed) send(res, 200, { ok: true, answer: answer || null });
+        return;
       } catch (err) {
         return send(res, 400, { ok: false, error: err.message });
       }

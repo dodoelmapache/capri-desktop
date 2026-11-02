@@ -159,6 +159,24 @@ export class Chip extends Mask {
     return { ...this.face };
   }
 
+  // Sitting on a window's top edge, toward its right end (her menu > When she rests > Sitting on my windows)
+  perch(win, view) {
+    const x = Math.min(Math.max(win.x + win.w - 90, win.x + 70), view.w - 60);
+    const y = win.y - 54 * K + 2; // her fang just touching the edge
+    if (this.perched && Math.abs(this.face.x - x) < 1 && Math.abs(this.face.y - y) < 1) return;
+    super.place(x, y, K);
+    this.face = { x, y };
+    this.perched = true;
+    this.canvas.style.transition = 'transform 140ms linear'; // she rides along with the window
+  }
+
+  // Back in her corner.
+  home(w, h) {
+    this.perched = false;
+    this.canvas.style.transition = 'none';
+    this.place(w, h);
+  }
+
   // just the mask, spike and fang included
   contains(x, y, pad = 8) {
     const { x: fx, y: fy } = this.face;
