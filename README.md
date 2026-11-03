@@ -12,12 +12,9 @@ glitches, comments on every action, comes to find you when it needs your permiss
 
 ## Watch her
 
-| | 16:9 | 9:16 (phones, Reels, Shorts) |
-|---|---|---|
-| **English** | [capri-FINAL-en-16x9.mp4](https://github.com/dodoelmapache/capri-desktop/releases/download/v0.4.0-dodo.2/capri-FINAL-en-16x9.mp4) | [capri-FINAL-en-9x16.mp4](https://github.com/dodoelmapache/capri-desktop/releases/download/v0.4.0-dodo.2/capri-FINAL-en-9x16.mp4) |
-| **Español** | [capri-FINAL-es-16x9.mp4](https://github.com/dodoelmapache/capri-desktop/releases/download/v0.4.0-dodo.2/capri-FINAL-es-16x9.mp4) | [capri-FINAL-es-9x16.mp4](https://github.com/dodoelmapache/capri-desktop/releases/download/v0.4.0-dodo.2/capri-FINAL-es-9x16.mp4) |
+[▶ Watch the presentation video](https://github.com/dodoelmapache/capri-desktop/releases/download/v0.4.0-dodo.2/capri-FINAL-en-16x9.mp4)
 
-A 90-second tour: what she does, how to talk to her, voice mode, images, her card and how to turn her on.
+A tour of what she does, how to talk to her, voice mode, images, her card and how to turn her on.
 
 ## What she does
 
