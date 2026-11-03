@@ -245,6 +245,20 @@ it: no API key, and nothing to pay for Capri herself.
 Without Claude Code she still lives on your desktop: she floats, sits on your windows, looks at the satellite, falls
 asleep. You can just leave her there.
 
+### Ollama (optional, free, runs on your PC)
+
+[Ollama](https://ollama.com) runs AI models locally. Capri uses it for two things, and you need neither to install her:
+
+- **To chat with her** (**Talk to her** in her menu): pick **On my PC** and she installs Ollama for you (with winget,
+  Windows' own installer), wakes it up and downloads a model while a bar fills up: `gemma3` (3.3 GB, better in
+  languages other than English) or `llama3.2` (2 GB, for smaller PCs). Nothing leaves your machine and nothing costs money.
+- **To run Claude Code on a local model**: **Free with Ollama** in her guide installs her hooks, installs Ollama if it
+  isn't there, and opens a window on `ollama launch claude` where you pick a model. It works like any Claude Code,
+  just slower.
+
+You don't need to download Ollama by hand. If you prefer to, get it from [ollama.com](https://ollama.com/download)
+first. Ollama isn't bundled in this repo or in the installer: Capri only installs it when you pick one of the options above.
+
 ### From the source (macOS, Linux, developers)
 
 You need [Node.js](https://nodejs.org) 20 or newer.
