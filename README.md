@@ -12,7 +12,9 @@ glitches, comments on every action, comes to find you when it needs your permiss
 
 ## Watch her
 
-[▶ Watch the presentation video](https://github.com/dodoelmapache/capri-desktop/releases/download/v0.4.0-dodo.2/capri-FINAL-en-16x9.mp4)
+https://github.com/user-attachments/assets/6b4b7919-7601-40c9-93ac-5f65e6c25833
+
+[Download it in full quality (1080p)](https://github.com/dodoelmapache/capri-desktop/releases/download/v0.4.0-dodo.2/capri-FINAL-en-16x9.mp4)
 
 A tour of what she does, how to talk to her, voice mode, images, her card and how to turn her on.
 
